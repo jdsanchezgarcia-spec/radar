@@ -314,7 +314,7 @@ function cargar(){
     poblarFiltros();
     renderKpis();render();
   }).catch(function(e){
-    SESION=null;try{sessionStorage.removeItem('radar_sesion');}catch(e2){}}
+    SESION=null;try{sessionStorage.removeItem('radar_sesion');}catch(e2){}
     document.getElementById('app').style.display='none';
     document.getElementById('login').style.display='flex';
     renderBotonLogin();
