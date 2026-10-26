@@ -1,0 +1,309 @@
+function jsonResp(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function apiLeer(accion, p) {
+  const sesion = (p && p.sesion) || '';
+  const usuario = usuarioDeSesion(sesion);
+  if (accion === 'datos' || accion === 'panel') {
+    exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
+    return panelDatos(sesion);
+  }
+  if (accion === 'appconfig') return { googleClientId: googleClientId() };
+  if (accion === 'documentacion') {
+    const id = normalizarTexto((p && (p.id || p.caso)) || '');
+    exigirAccesoCaso(usuario, id);
+    return documentacionCaso(id);
+  }
+  if (accion === 'visitas') {
+    const id = normalizarTexto((p && (p.id || p.caso)) || '');
+    exigirAccesoCaso(usuario, id);
+    return { ok: true, visitas: listarVisitas(id) };
+  }
+  if (accion === 'usuarios') {
+    exigirRol(usuario, [CFG.ROLES.ADMIN]);
+    return { ok: true, usuarios: listaUsuarios() };
+  }
+  return { error: 'Acción de lectura desconocida: ' + accion };
+}
+
+function asegurarInstalacion() {
+  try {
+    const lock = LockService.getScriptLock();
+    const obtenido = lock.tryLock(10000);
+    if (!obtenido) return;
+    try {
+      const version = PropertiesService.getScriptProperties().getProperty('INSTALACION_VERSION');
+      let hojaConfig = false;
+      try {
+        hojaConfig = !!ss().getSheetByName(CFG.HOJAS.CONFIG);
+      } catch (e) {
+        hojaConfig = false;
+      }
+      if (version !== VERSION_INSTALACION || !hojaConfig) instalarSistema();
+      asegurarColumnaEstado();
+      asegurarHojasNuevas();
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (e) {
+    console.log('Auto-instalación no completada: ' + e.message);
+  }
+}
+
+function asegurarHojasNuevas() {
+  crearHoja(CFG.HOJAS.USUARIOS, COL.USUARIOS, [240, 180, 110, 80, 130]);
+  crearHoja(CFG.HOJAS.VISITAS, COL.VISITAS, [95, 90, 100, 120, 160, 300, 260, 240, 160, 150, 90]);
+  const hu = hojaPorNombre(CFG.HOJAS.USUARIOS);
+  if (hu.getLastRow() < 2) {
+    let email = '';
+    try { email = Session.getEffectiveUser().getEmail(); } catch (e) {}
+    if (email) hu.appendRow([String(email).toLowerCase(), 'Administrador', CFG.ROLES.ADMIN, 'Sí', new Date()]);
+  }
+}
+
+function asegurarColumnaEstado() {
+  const h = hojaPorNombre(CFG.HOJAS.CASOS);
+  if (!h) return;
+  const col = COL.CASOS.indexOf('ESTADO SEGUIMIENTO') + 1;
+  const cab = h.getLastColumn() >= col ? h.getRange(1, col).getValue() : '';
+  if (normalizarTexto(cab) !== 'ESTADO SEGUIMIENTO') {
+    h.getRange(1, col).setValue('ESTADO SEGUIMIENTO');
+  }
+}
+
+function doGet(e) {
+  const p = (e && e.parameter) ? e.parameter : {};
+  const accion = p.accion || p.action;
+  if (accion) {
+    try {
+      return jsonResp(apiLeer(accion, p));
+    } catch (err) {
+      return jsonResp({ error: err.message || String(err) });
+    }
+  }
+  asegurarInstalacion();
+  return HtmlService.createHtmlOutputFromFile('IndexWeb')
+    .setTitle('Radar Materno')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function doPost(e) {
+  let body = {};
+  try {
+    body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+  } catch (err) {
+    return jsonResp({ ok: false, mensaje: 'JSON inválido.' });
+  }
+  return jsonResp(apiEjecutar(body));
+}
+
+function apiEjecutar(body) {
+  const accion = body.accion;
+  const datos = body.datos || {};
+  const usuario = usuarioDeSesion(body.sesion || datos.sesion || '');
+  try {
+    if (accion === 'login') {
+      const r = loginConToken(body.idToken || datos.idToken);
+      return { ok: true, token: r.token, email: r.email, nombre: r.nombre, rol: r.rol };
+    }
+    if (accion === 'logout') {
+      cerrarSesion(body.sesion || datos.sesion || '');
+      return { ok: true, mensaje: 'Sesión cerrada.' };
+    }
+    if (accion === 'nuevoCaso') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const id = registrarCaso(datos);
+      generarHojaAlertas();
+      construirTablero();
+      return { ok: true, id: id, mensaje: 'Caso ' + id + ' creado.' };
+    }
+    if (accion === 'editarSeguimiento') {
+      const id = normalizarTexto(datos.id);
+      const casoReg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) { return normalizarTexto(c['ID_Caso']) === id; })[0];
+      if (!casoReg) throw new Error('No existe el caso "' + id + '".');
+      if (!puedeEditarCaso(usuario, casoReg['PROFESIONAL ASIGNADO'])) throw new Error('No tienes permiso para editar este caso.');
+      const rid = editarSeguimientoCaso(datos);
+      generarHojaAlertas();
+      construirTablero();
+      return { ok: true, id: rid, mensaje: 'Caso ' + rid + ' actualizado.' };
+    }
+    if (accion === 'eliminarCaso') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const id = eliminarCaso(body.id || datos.id || '');
+      generarHojaAlertas();
+      construirTablero();
+      return { ok: true, id: id, mensaje: 'Caso ' + id + ' eliminado.' };
+    }
+    if (accion === 'subirArchivo') {
+      const casoId = body.casoId || datos.casoId;
+      const casoReg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) { return normalizarTexto(c['ID_Caso']) === normalizarTexto(casoId); })[0];
+      if (casoReg && !puedeEditarCaso(usuario, casoReg['PROFESIONAL ASIGNADO'])) throw new Error('No tienes permiso para subir archivos a este caso.');
+      const res = subirArchivoACaso(casoId, body.nombre || datos.nombre, body.mimeType || datos.mimeType, body.base64 || datos.base64);
+      return { ok: true, mensaje: 'Archivo "' + res.archivo + '" subido a ' + res.carpeta + '.', datos: res };
+    }
+    if (accion === 'asignarProfesional') {
+      const m = asignarProfesional(datos, usuario);
+      return { ok: true, mensaje: m };
+    }
+    if (accion === 'agregarVisita') {
+      const r = agregarVisita(datos, usuario);
+      return { ok: true, id: r.id, mensaje: 'Visita ' + r.id + ' registrada.', datos: r };
+    }
+    if (accion === 'subirArchivoVisita') {
+      const r = subirArchivoVisita(body.idVisita || datos.idVisita, body.nombre || datos.nombre, body.mimeType || datos.mimeType, body.base64 || datos.base64, usuario);
+      return { ok: true, mensaje: 'Archivo "' + r.archivo + '" subido.', datos: r };
+    }
+    if (accion === 'agregarUsuario') {
+      return { ok: true, mensaje: agregarUsuario(datos, usuario) };
+    }
+    if (accion === 'actualizarUsuario') {
+      return { ok: true, mensaje: actualizarUsuario(datos, usuario) };
+    }
+    if (accion === 'eliminarUsuario') {
+      return { ok: true, mensaje: eliminarUsuario(body.email || datos.email, usuario) };
+    }
+    return { ok: false, mensaje: 'Acción desconocida: ' + accion };
+  } catch (err) {
+    return { ok: false, mensaje: err.message || String(err) };
+  }
+}
+
+function abrirPanel() {
+  const html = HtmlService.createHtmlOutputFromFile('PanelUI')
+    .setTitle('Radar Materno')
+    .setWidth(470);
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function panelDatos(sesion) {
+  const acciones = leerTabla(CFG.HOJAS.PLANES);
+  const kpi = calcularKpis(acciones);
+  const lista = [];
+
+  acciones.forEach(function (r) {
+    const alerta = clasificarAlerta(r);
+    const dias = diasRestantes(r['Fecha límite']);
+    lista.push({
+      id: normalizarTexto(r['ID_Acción']),
+      evento: normalizarTexto(r['ID_Evento']),
+      institucion: normalizarTexto(r['Institución responsable']),
+      responsable: normalizarTexto(r['Responsable asignado']),
+      hallazgo: normalizarTexto(r['Hallazgo identificado']),
+      accion: normalizarTexto(r['Acción propuesta']),
+      indicador: normalizarTexto(r['Indicador / evidencia esperada']),
+      fechaLimite: formatearFecha(r['Fecha límite']),
+      dias: dias,
+      prioridad: normalizarTexto(r['Prioridad']),
+      estado: normalizarTexto(r['Estado']),
+      avance: numeroDe(r['% Avance']),
+      evidencias: numeroDe(r['N° evidencias']),
+      carpeta: normalizarTexto(r['Carpeta de evidencias']),
+      fechaReporte: formatearFecha(r['Fecha reporte']),
+      verificador: normalizarTexto(r['Verificador']),
+      observaciones: normalizarTexto(r['Observaciones de verificación']),
+      alerta: alerta ? alerta.nivel : '',
+      detalleAlerta: alerta ? alerta.detalle : ''
+    });
+  });
+
+  const ordenAlerta = {};
+  CFG.NIVELES_ALERTA.forEach(function (n, i) {
+    ordenAlerta[n] = i;
+  });
+  lista.sort(function (a, b) {
+    const oa = a.alerta ? ordenAlerta[a.alerta] : 99;
+    const ob = b.alerta ? ordenAlerta[b.alerta] : 99;
+    if (oa !== ob) return oa - ob;
+    const da = a.dias === null ? 99999 : a.dias;
+    const db = b.dias === null ? 99999 : b.dias;
+    return da - db;
+  });
+
+  const eventos = leerTabla(CFG.HOJAS.EVENTOS).map(function (e) {
+    return {
+      id: normalizarTexto(e['ID_Evento']),
+      institucion: normalizarTexto(e['Institución']),
+      resumen: normalizarTexto(e['Resumen del evento'])
+    };
+  });
+
+  const usuario = usuarioDeSesion(sesion);
+  let casos = listaCasos();
+  if (usuario && usuario.rol !== CFG.ROLES.ADMIN) {
+    casos = casos.filter(function (c) {
+      return normalizarTexto(c.profesional) === normalizarTexto(usuario.nombre);
+    });
+  }
+
+  return {
+    kpi: kpi,
+    acciones: lista,
+    eventos: eventos,
+    casos: casos,
+    kpiCasos: kpiDesdeLista(casos),
+    semanasVencimiento: semanasVencimiento(),
+    estados: [CFG.ESTADOS.PENDIENTE, CFG.ESTADOS.EJECUCION, CFG.ESTADOS.REPORTADA, CFG.ESTADOS.VERIFICADA, CFG.ESTADOS.RECHAZADA],
+    estadosCaso: CFG.ESTADOS_CASO,
+    ipsPais: COL.IPS_PAIS,
+    tiposVisita: CFG.TIPOS_VISITA,
+    profesionales: profesionales(),
+    usuario: usuario,
+    fecha: ahoraTexto()
+  };
+}
+
+function panelNuevoCaso(datos) {
+  const id = registrarCaso(datos);
+  generarHojaAlertas();
+  construirTablero();
+  return { ok: true, mensaje: 'Caso ' + id + ' asignado.', id };
+}
+
+function panelSeguimientoCaso(datos) {
+  const id = editarSeguimientoCaso(datos);
+  generarHojaAlertas();
+  construirTablero();
+  return { ok: true, mensaje: 'Caso ' + id + ' actualizado.', id };
+}
+
+function panelEliminarCaso(id) {
+  const resultado = eliminarCaso(id);
+  generarHojaAlertas();
+  construirTablero();
+  return { ok: true, mensaje: 'Caso ' + resultado + ' eliminado.' };
+}
+
+function panelNuevaAccion(datos) {
+  const id = registrarAccion(datos);
+  generarHojaAlertas();
+  construirTablero();
+  return { ok: true, mensaje: 'Acción ' + id + ' registrada.' };
+}
+
+function panelNuevoEvento(datos) {
+  const id = registrarEvento(datos);
+  return { ok: true, mensaje: 'Evento ' + id + ' registrado.' };
+}
+
+function panelCambiarEstado(idAccion, nuevoEstado, detalle) {
+  const resultado = cambiarEstado(idAccion, nuevoEstado, detalle || {});
+  generarHojaAlertas();
+  construirTablero();
+  return { ok: true, mensaje: resultado };
+}
+
+function panelSubirEvidencia(idAccion, nombreArchivo, mimeType, base64) {
+  const resultado = subirEvidencia(idAccion, nombreArchivo, mimeType, base64);
+  return { ok: true, mensaje: 'Evidencia "' + resultado.archivo + '" subida. Total: ' + resultado.total, datos: resultado };
+}
+
+function panelSincronizar(idAccion) {
+  const resultado = sincronizarEvidencias(idAccion);
+  return { ok: true, mensaje: 'Evidencias sincronizadas: ' + resultado.total, datos: resultado };
+}
+
+function panelVincularEvidencia(idAccion, url) {
+  const mensaje = vincularEvidenciaExterna(idAccion, url);
+  return { ok: true, mensaje: mensaje };
+}

@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root {
+    --azul: #0B3C5D;
+    --azul2: #1F4E79;
+    --fondo: #F4F6F8;
+    --borde: #D5DCE4;
+    --texto: #2C3E50;
+    --rojo: #C0392B;
+    --naranja: #E67E22;
+    --amarillo: #B7950B;
+    --verde: #1E8449;
+    --gris: #7F8C8D;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+    font-size: 13px;
+  }
+  header {
+    background: var(--azul);
+    color: #fff;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 15px; margin: 0; }
+  header .fecha { font-size: 10px; opacity: .8; margin-top: 2px; }
+  header button {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.4);
+    color: #fff;
+    border-radius: 4px;
+    padding: 5px 9px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    gap: 6px;
+    padding: 8px 10px;
+    background: #fff;
+    border-bottom: 1px solid var(--borde);
+  }
+  .kpi {
+    text-align: center;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 6px 2px;
+  }
+  .kpi .n { font-size: 17px; font-weight: bold; color: var(--azul2); }
+  .kpi .l { font-size: 9px; color: var(--gris); text-transform: uppercase; }
+  .kpi.alerta { background: #FDEDEC; border-color: #F5B7B1; }
+  .kpi.alerta .n { color: var(--rojo); }
+  nav.tabs { display: flex; background: #fff; border-bottom: 1px solid var(--borde); }
+  nav.tabs button {
+    flex: 1;
+    padding: 9px 4px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--gris);
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  nav.tabs button.activo { color: var(--azul2); border-bottom-color: var(--azul2); }
+  .pestana { display: none; padding: 10px; }
+  .pestana.activo { display: block; }
+  .barra { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .barra input[type=text] {
+    flex: 1;
+    padding: 7px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .chip {
+    border: 1px solid var(--borde);
+    background: #fff;
+    border-radius: 12px;
+    padding: 4px 9px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--texto);
+  }
+  .chip.activo { background: var(--azul2); color: #fff; border-color: var(--azul2); }
+  .vacio { text-align: center; color: var(--gris); padding: 24px 8px; font-size: 12px; }
+  .tarjeta {
+    background: #fff;
+    border: 1px solid var(--borde);
+    border-left: 5px solid var(--gris);
+    border-radius: 6px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+  }
+  .tarjeta.t-alerta { border-left-color: var(--rojo); }
+  .tarjeta.t-proximo { border-left-color: var(--amarillo); }
+  .tarjeta.t-sinverificar { border-left-color: var(--naranja); }
+  .tarjeta.t-ok { border-left-color: var(--verde); }
+  .tarjeta .cabeza { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .etiquetas { display: flex; gap: 4px; flex-wrap: wrap; }
+  .etiqueta {
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 9px;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--gris);
+  }
+  .etiqueta.id { background: #fff; color: var(--azul2); border: 1px solid var(--azul2); }
+  .etiqueta.alerta-vencida { background: var(--rojo); }
+  .etiqueta.alerta-proximo { background: var(--amarillo); }
+  .etiqueta.alerta-sinverificar { background: var(--naranja); }
+  .etiqueta.alerta-rechazada { background: #922B21; }
+  .etiqueta.alerta-sinfecha { background: var(--gris); }
+  .etiqueta.e-pendiente { background: #B7950B; }
+  .etiqueta.e-ejecucion { background: #2471A3; }
+  .etiqueta.e-reportada { background: var(--naranja); }
+  .etiqueta.e-verificada { background: var(--verde); }
+  .etiqueta.e-rechazada { background: var(--rojo); }
+  .etiqueta.p-alta { background: var(--rojo); }
+  .tarjeta .inst { font-weight: bold; font-size: 12.5px; margin-top: 7px; color: var(--azul2); }
+  .tarjeta .resp { font-size: 11px; color: var(--gris); }
+  .tarjeta .texto { font-size: 12px; margin-top: 6px; line-height: 1.4; }
+  .tarjeta .detalle { font-size: 11px; color: var(--rojo); margin-top: 5px; font-style: italic; }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font-size: 11px; color: var(--gris); }
+  .meta b { color: var(--texto); }
+  .grupo-titulo { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--azul2); font-weight: bold; margin: 9px 0 2px; padding-bottom: 2px; border-bottom: 1px solid #e3eaf1; }
+  .fila-dato { display: grid; grid-template-columns: 128px 1fr; gap: 1px 10px; font-size: 11.5px; padding: 3px 0; border-bottom: 1px solid #f1f5f9; }
+  .fila-dato:last-child { border-bottom: none; }
+  .fila-dato .lbl { font-weight: bold; color: var(--gris); }
+  .fila-dato .val { color: var(--texto); line-height: 1.45; white-space: pre-line; word-break: break-word; }
+  .fila-dato .val.vacio { color: #b6c2ce; }
+  .barra-avance { background: #EAEDED; height: 7px; border-radius: 4px; margin-top: 7px; overflow: hidden; }
+  .barra-avance div { height: 100%; background: var(--verde); border-radius: 4px; }
+  .botonera { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .btn {
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-weight: bold;
+    cursor: pointer;
+    background: var(--azul2);
+    color: #fff;
+  }
+  .btn.sec { background: #EAEDED; color: var(--texto); }
+  .btn.ok { background: var(--verde); }
+  .btn.mal { background: var(--rojo); }
+  .btn.aviso { background: var(--naranja); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .form { background: #fff; border: 1px solid var(--borde); border-radius: 6px; padding: 12px; }
+  .form h3 { margin: 0 0 10px; font-size: 13px; color: var(--azul2); }
+  .campo { margin-bottom: 9px; }
+  .campo label { display: block; font-size: 11px; font-weight: bold; color: var(--azul2); margin-bottom: 3px; }
+  .campo input[type=text], .campo input[type=date], .campo input[type=number],
+  .campo select, .campo textarea {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+    background: #fff;
+  }
+  .campo textarea { resize: vertical; min-height: 56px; }
+  .segmento { display: flex; gap: 6px; margin-bottom: 10px; }
+  .segmento button {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--borde);
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--texto);
+  }
+  .segmento button.activo { background: var(--azul2); color: #fff; border-color: var(--azul2); }
+  .oculto { display: none !important; }
+  #capa-carga {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; font-weight: bold; color: var(--azul2);
+  }
+  #capa-modal {
+    position: fixed; inset: 0;
+    background: rgba(11,60,93,.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 60; padding: 14px;
+  }
+  #modal {
+    background: #fff;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 14px;
+  }
+  #modal h3 { margin: 0 0 4px; color: var(--azul2); font-size: 14px; }
+  #modal .sub { font-size: 11px; color: var(--gris); margin-bottom: 10px; }
+  #aviso {
+    position: fixed;
+    left: 10px; right: 10px; bottom: 12px;
+    background: var(--azul);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 70;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+  #aviso.error { background: var(--rojo); }
+  #aviso.ok { background: var(--verde); }
+  .enlace { color: var(--azul2); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Radar Materno</h1>
+    <div class="fecha" id="fecha-actualizacion"></div>
+  </div>
+  <button onclick="cargar()">&#8635; Actualizar</button>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<nav class="tabs">
+  <button id="tab-btn-alertas" class="activo" onclick="mostrarPestana('alertas')">Alertas</button>
+  <button id="tab-btn-casos" onclick="mostrarPestana('casos')">Casos</button>
+  <button id="tab-btn-acciones" onclick="mostrarPestana('acciones')">Acciones</button>
+  <button id="tab-btn-nueva" onclick="mostrarPestana('nueva')">Registrar</button>
+</nav>
+
+<div id="pestana-alertas" class="pestana activo">
+  <div id="lista-alertas"></div>
+</div>
+
+<div id="pestana-casos" class="pestana">
+  <div class="barra">
+    <button class="btn ok" style="width:100%" onclick="modalNuevoCaso()">&#65291; Asignar caso</button>
+  </div>
+  <div id="lista-casos"></div>
+</div>
+
+<div id="pestana-acciones" class="pestana">
+  <div class="barra">
+    <input type="text" id="buscador" placeholder="Buscar por código, institución o responsable..." oninput="renderAcciones()">
+  </div>
+  <div class="chips" id="chips-filtro"></div>
+  <div id="lista-acciones"></div>
+</div>
+
+<div id="pestana-nueva" class="pestana">
+  <div class="segmento">
+    <button id="seg-accion" class="activo" onclick="mostrarFormulario('accion')">Acción de mejora</button>
+    <button id="seg-evento" onclick="mostrarFormulario('evento')">Evento</button>
+  </div>
+
+  <form id="form-accion" class="form" onsubmit="return guardarAccion(event)">
+    <h3>Nueva acción de mejora</h3>
+    <div class="campo">
+      <label>ID Evento (opcional)</label>
+      <input type="text" id="f-evento" list="lista-eventos" placeholder="Ej: EV-0001">
+      <datalist id="lista-eventos"></datalist>
+    </div>
+    <div class="campo">
+      <label>Institución responsable *</label>
+      <input type="text" id="f-institucion" required placeholder="Ej: Hospital General Villavicencio">
+    </div>
+    <div class="campo">
+      <label>Responsable asignado *</label>
+      <input type="text" id="f-responsable" required placeholder="Nombre del responsable">
+    </div>
+    <div class="campo">
+      <label>Hallazgo identificado *</label>
+      <textarea id="f-hallazgo" required placeholder="Qué se detectó en el análisis del evento"></textarea>
+    </div>
+    <div class="campo">
+      <label>Acción propuesta *</label>
+      <textarea id="f-accion" required placeholder="Qué se va a hacer para corregirlo"></textarea>
+    </div>
+    <div class="campo">
+      <label>Indicador o evidencia esperada</label>
+      <input type="text" id="f-indicador" placeholder="Ej: Acta de capacitación firmada, reporte mensual...">
+    </div>
+    <div class="campo">
+      <label>Fecha límite *</label>
+      <input type="date" id="f-fecha" required>
+    </div>
+    <div class="campo">
+      <label>Prioridad</label>
+      <select id="f-prioridad">
+        <option value="Alta">Alta</option>
+        <option value="Media" selected>Media</option>
+        <option value="Baja">Baja</option>
+      </select>
+    </div>
+    <button type="submit" class="btn ok" style="width:100%">Guardar acción</button>
+  </form>
+
+  <form id="form-evento" class="form oculto" onsubmit="return guardarEvento(event)">
+    <h3>Nuevo evento materno o perinatal</h3>
+    <div class="campo">
+      <label>Fecha del evento *</label>
+      <input type="date" id="e-fecha" required>
+    </div>
+    <div class="campo">
+      <label>Clasificación</label>
+      <select id="e-clasificacion">
+        <option value="Materno">Materno</option>
+        <option value="Perinatal">Perinatal</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Tipo de evento</label>
+      <input type="text" id="e-tipo" placeholder="Ej: hemorragia obstétrica, prematuridad...">
+    </div>
+    <div class="campo">
+      <label>Institución *</label>
+      <input type="text" id="e-institucion" required>
+    </div>
+    <div class="campo">
+      <label>Resumen del evento *</label>
+      <textarea id="e-resumen" required></textarea>
+    </div>
+    <div class="campo">
+      <label>Estado de la UAEM</label>
+      <select id="e-uaem">
+        <option value="Programada">Programada</option>
+        <option value="Realizada">Realizada</option>
+        <option value="No realizada">No realizada</option>
+      </select>
+    </div>
+    <button type="submit" class="btn ok" style="width:100%">Guardar evento</button>
+  </form>
+</div>
+
+<div id="capa-carga" class="oculto">
+  <div style="text-align:center">
+    <div style="font-size:22px;margin-bottom:6px">&#8987;</div>
+    Cargando datos...
+    <div style="font-weight:normal;font-size:11px;color:#667;margin-top:8px">
+      Si aparece una ventana de Google pidiendo permiso, acéptala.<br>
+      Si no pasa nada en 30 segundos, se mostrará el motivo.
+    </div>
+  </div>
+</div>
+<div id="capa-modal" class="oculto" onclick="if(event.target===this)cerrarModal()">
+  <div id="modal"></div>
+</div>
+<div id="aviso" class="oculto"></div>
+<input type="file" id="archivo-oculto" class="oculto"
+  accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt,.csv">
+
+<script>
+var datos = { kpi: {}, kpiCasos: {}, acciones: [], casos: [], eventos: [], estados: [] };
+var filtroEstado = 'TODAS';
+var idArchivoPendiente = null;
+var avisoTemporizador = null;
+
+function esc(valor) {
+  return String(valor === null || valor === undefined ? '' : valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function claseAlerta(alerta) {
+  if (alerta === 'VENCIDA' || alerta === 'RECHAZADA') return 't-alerta';
+  if (alerta === 'PRÓXIMO A VENCER' || alerta === 'SIN FECHA LÍMITE') return 't-proximo';
+  if (alerta === 'SIN VERIFICAR') return 't-sinverificar';
+  return '';
+}
+
+function claseEstado(estado) {
+  if (estado === 'Verificada') return 't-ok';
+  if (estado === 'Rechazada') return 't-alerta';
+  if (estado === 'Reportada') return 't-sinverificar';
+  return '';
+}
+
+function claseEtiquetaAlerta(alerta) {
+  return {
+    'VENCIDA': 'alerta-vencida',
+    'PRÓXIMO A VENCER': 'alerta-proximo',
+    'SIN VERIFICAR': 'alerta-sinverificar',
+    'RECHAZADA': 'alerta-rechazada',
+    'SIN FECHA LÍMITE': 'alerta-sinfecha'
+  }[alerta] || '';
+}
+
+function claseEtiquetaEstado(estado) {
+  return {
+    'Pendiente': 'e-pendiente',
+    'En ejecución': 'e-ejecucion',
+    'Reportada': 'e-reportada',
+    'Verificada': 'e-verificada',
+    'Rechazada': 'e-rechazada'
+  }[estado] || '';
+}
+
+function aviso(mensaje, tipo) {
+  var el = document.getElementById('aviso');
+  el.textContent = mensaje;
+  el.className = tipo || '';
+  el.classList.remove('oculto');
+  if (avisoTemporizador) clearTimeout(avisoTemporizador);
+  avisoTemporizador = setTimeout(function () {
+    el.classList.add('oculto');
+  }, tipo === 'error' ? 6000 : 3500);
+}
+
+function cargando(mostrar) {
+  document.getElementById('capa-carga').classList.toggle('oculto', !mostrar);
+}
+
+function llamarServidor(funcion, argumentos, alTerminar) {
+  argumentos = argumentos || [];
+
+  if (typeof google === 'undefined' || !google.script || !google.script.run) {
+    cargando(false);
+    aviso('Estás viendo una vista previa del editor. Abre la hoja de cálculo y usa el menú "Radar Materno" → "Abrir panel de seguimiento".', 'error');
+    return;
+  }
+
+  cargando(true);
+  var reloj = setTimeout(function () {
+    cargando(false);
+    aviso('El script no respondió en 30 segundos. Suele ser por permisos: ejecuta "Radar Materno" → "Instalar / Reparar sistema", acepta todo y vuelve a abrir el panel.', 'error');
+  }, 30000);
+
+  function terminar(resultado, error) {
+    clearTimeout(reloj);
+    cargando(false);
+    if (error) {
+      aviso(error && error.message ? error.message : String(error), 'error');
+      if (alTerminar) alTerminar(null, error);
+      return;
+    }
+    if (alTerminar) alTerminar(resultado, null);
+  }
+
+  try {
+    const runner = google.script.run
+      .withSuccessHandler(function (resultado) { terminar(resultado, null); })
+      .withFailureHandler(function (error) { terminar(null, error); });
+
+    if (funcion === 'panelDatos') runner.panelDatos();
+    else if (funcion === 'panelCambiarEstado') runner.panelCambiarEstado(argumentos[0], argumentos[1], argumentos[2]);
+    else if (funcion === 'panelNuevaAccion') runner.panelNuevaAccion(argumentos[0]);
+    else if (funcion === 'panelNuevoEvento') runner.panelNuevoEvento(argumentos[0]);
+    else if (funcion === 'panelNuevoCaso') runner.panelNuevoCaso(argumentos[0]);
+    else if (funcion === 'panelSeguimientoCaso') runner.panelSeguimientoCaso(argumentos[0]);
+    else if (funcion === 'panelEliminarCaso') runner.panelEliminarCaso(argumentos[0]);
+    else if (funcion === 'panelSubirEvidencia') runner.panelSubirEvidencia(argumentos[0], argumentos[1], argumentos[2], argumentos[3]);
+    else if (funcion === 'actualizarAvance') runner.actualizarAvance(argumentos[0], argumentos[1]);
+    else if (funcion === 'panelSincronizar') runner.panelSincronizar(argumentos[0]);
+    else if (funcion === 'panelVincularEvidencia') runner.panelVincularEvidencia(argumentos[0], argumentos[1]);
+    else terminar(null, new Error('Función no disponible: ' + funcion));
+  } catch (e) {
+    terminar(null, e);
+  }
+}
+
+function cargar() {
+  llamarServidor('panelDatos', [], function (resultado) {
+    if (!resultado) return;
+    datos = resultado;
+    document.getElementById('fecha-actualizacion').textContent = 'Actualizado: ' + resultado.fecha;
+    renderKpis();
+    renderAlertas();
+    renderCasos();
+    renderChips();
+    renderAcciones();
+    renderEventos();
+  });
+}
+
+function renderKpis() {
+  var k = datos.kpi || {};
+  var kc = datos.kpiCasos || {};
+  var items = [
+    ['Total', k.total, false],
+    ['Vencidas', k.vencidas, k.vencidas > 0],
+    ['Sin verificar', k.sinVerificar, k.sinVerificar > 0],
+    ['Próximas', k.proximas, k.proximas > 0],
+    ['Casos', kc.total || 0, (kc.vencidos || 0) > 0]
+  ];
+  document.getElementById('kpis').innerHTML = items.map(function (i) {
+    return '<div class="kpi' + (i[2] ? ' alerta' : '') + '">' +
+      '<div class="n">' + i[1] + '</div>' +
+      '<div class="l">' + i[0] + '</div></div>';
+  }).join('');
+}
+
+function mostrarPestana(nombre) {
+  ['alertas', 'casos', 'acciones', 'nueva'].forEach(function (p) {
+    document.getElementById('pestana-' + p).classList.toggle('activo', p === nombre);
+    document.getElementById('tab-btn-' + p).classList.toggle('activo', p === nombre);
+  });
+}
+
+function renderAlertas() {
+  var conAlerta = datos.acciones.filter(function (a) { return a.alerta; });
+  var casosAlerta = (datos.casos || []).filter(function (c) { return c.alerta; });
+  var cont = document.getElementById('lista-alertas');
+  if (conAlerta.length === 0 && casosAlerta.length === 0) {
+    cont.innerHTML = '<div class="vacio">No hay alertas activas.<br>Todo el seguimiento está al día.</div>';
+    return;
+  }
+  cont.innerHTML = conAlerta.map(function (a) {
+    return tarjetaHTML(a, true);
+  }).join('') + casosAlerta.map(tarjetaCasoHTML).join('');
+}
+
+function renderCasos() {
+  var cont = document.getElementById('lista-casos');
+  var casos = datos.casos || [];
+  if (casos.length === 0) {
+    cont.innerHTML = '<div class="vacio">No hay casos asignados.<br>Pulsa "Asignar caso" para registrar el primero.</div>';
+    return;
+  }
+  cont.innerHTML = casos.map(tarjetaCasoHTML).join('');
+}
+
+function tarjetaCasoHTML(c) {
+  var et = '';
+  if (c.alerta) et += '<span class="etiqueta ' + claseEtiquetaAlerta(c.alerta) + '">' + esc(c.alerta) + '</span>';
+  et += '<span class="etiqueta id">' + esc(c.id) + '</span>';
+  et += '<span class="etiqueta ' + (c.fechaRealizacion ? 'e-verificada' : 'e-pendiente') + '">' +
+    (c.fechaRealizacion ? 'Realizado' : 'Pendiente') + '</span>';
+
+  var diasTexto = '';
+  if (c.dias !== null && c.dias !== undefined) {
+    diasTexto = c.dias >= 0 ? 'Vence en ' + c.dias + ' día(s)' : 'Vencido hace ' + Math.abs(c.dias) + ' día(s)';
+  }
+
+  function fila(label, valor) {
+    var v = (valor === '' || valor === null || valor === undefined) ? '' : String(valor);
+    var val = v ? esc(v).replace(/\n/g, '<br>') : '<span class="vacio">—</span>';
+    return '<div class="fila-dato"><span class="lbl">' + label + '</span><span class="val">' + val + '</span></div>';
+  }
+  function grupo(titulo, contenido) {
+    return '<div class="grupo-dato"><div class="grupo-titulo">' + titulo + '</div>' + contenido + '</div>';
+  }
+
+  var html = '<div class="tarjeta ' + (c.alerta ? claseAlerta(c.alerta) : (c.fechaRealizacion ? 't-ok' : '')) + '">';
+  html += '<div class="cabeza"><div class="etiquetas">' + et + '</div></div>';
+  html += '<div class="inst">' + esc(c.caso) + '</div>';
+
+  html += grupo('Datos básicos',
+    fila('Cédula', c.cc) +
+    fila('Edad', (c.edad !== '' && c.edad !== undefined && c.edad !== null) ? c.edad + ' años' : '') +
+    fila('Gestaciones', c.gestaciones) +
+    fila('Evento (CIE)', c.evento)
+  );
+
+  html += grupo('Fechas',
+    fila('Defunción', c.fechaDefuncion) +
+    fila('Asignación', c.fechaAsignacion) +
+    fila('Vencimiento', c.fechaVencimiento ? c.fechaVencimiento + (diasTexto ? '  (' + diasTexto + ')' : '') : '') +
+    fila('Realización', c.fechaRealizacion) +
+    fila('Período epidemiológico', c.periodo)
+  );
+
+  html += grupo('Instituciones',
+    fila('EAPB', c.eapb) +
+    fila('IPS 1er nivel', c.ipsPrimerNivel) +
+    fila('IPS parto', c.ipsParto)
+  );
+
+  html += grupo('Análisis y seguimiento',
+    fila('Observación', c.observacion) +
+    fila('Causa de muerte', c.causaMuerte) +
+    fila('Conclusión UA', c.conclusion) +
+    fila('Profesional asignado', c.profesional) +
+    fila('Intervinientes UA', c.intervinientes) +
+    fila('Seguimiento', c.seguimiento) +
+    fila('Otros datos', c.otrosDatos)
+  );
+
+  if (c.detalleAlerta) html += '<div class="detalle">' + esc(c.detalleAlerta) + '</div>';
+  html += '<div class="botonera">' +
+    '<button class="btn sec" onclick="modalSeguimientoCaso(\'' + esc(c.id) + '\')">Editar seguimiento</button>' +
+    '<button class="btn mal" onclick="modalEliminarCaso(\'' + esc(c.id) + '\')">Eliminar</button>' +
+    '</div>';
+  html += '</div>';
+  return html;
+}
+
+function buscarCaso(id) {
+  var casos = datos.casos || [];
+  for (var i = 0; i < casos.length; i++) if (casos[i].id === id) return casos[i];
+  return null;
+}
+
+function hoyISO() {
+  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function isoMasDias(iso, dias) {
+  if (!iso) return '';
+  var partes = iso.split('-');
+  var f = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+  f.setDate(f.getDate() + dias);
+  return f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
+}
+
+function modalNuevoCaso() {
+  var semanas = datos.semanasVencimiento || 5;
+  abrirModal(
+    '<h3>Asignar caso</h3>' +
+    '<div class="sub">Unidad de análisis materno-perinatal · los campos con * son obligatorios</div>' +
+    '<div class="campo"><label>CASO (nombre) *</label><input type="text" id="c-caso" placeholder="Ej: H/ANA MARÍA PÉREZ"></div>' +
+    '<div class="campo"><label># cc *</label><input type="text" id="c-cc" placeholder="Cédula (acepta texto)"></div>' +
+    '<div class="campo"><label>Edad</label><input type="number" id="c-edad" min="0" max="120"></div>' +
+    '<div class="campo"><label>Gestaciones</label><input type="text" id="c-gestaciones" placeholder="Ej: G2A0P0C1V1"></div>' +
+    '<div class="campo"><label>Evento (CIE)</label><input type="text" id="c-evento" placeholder="Ej: 560 — varios: 550 560 580"></div>' +
+    '<div class="campo"><label>Fecha de defunción *</label><input type="date" id="c-defuncion" value="' + hoyISO() + '" onchange="prellenarVencimiento()"></div>' +
+    '<div class="campo"><label>Fecha de vencimiento</label><input type="date" id="c-vencimiento">' +
+    '<div style="font-size:10px;color:#7F8C8D;margin-top:2px">Automática: defunción + ' + semanas + ' semanas (déjala vacía para calcularla)</div></div>' +
+    '<div class="campo"><label>EAPB</label><input type="text" id="c-eapb" placeholder="Ej: SALUD TOTAL"></div>' +
+    '<div class="campo"><label>IPS de primer nivel</label><input type="text" id="c-ips1"></div>' +
+    '<div class="campo"><label>IPS de atención del parto</label><input type="text" id="c-ips2"></div>' +
+    '<div class="campo"><label>Conclusión UA</label><select id="c-conclusion">' +
+    '<option value="">(sin concluir)</option>' +
+    '<option>EVITABLE</option><option>NO EVITABLE</option>' +
+    '<option>EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL</option>' +
+    '<option>TEMPRANA DIRECTA EVITABLE</option><option>No aplica</option></select></div>' +
+    '<div class="campo"><label>Profesional asignado *</label><input type="text" id="c-profesional" list="lista-profesionales" placeholder="Quién hará el seguimiento">' +
+    '<datalist id="lista-profesionales">' +
+    '<option value="LUCIA MORA"></option><option value="DIANA PARDO"></option><option value="KAREN CASALLAS"></option></datalist></div>' +
+    '<div class="campo"><label>Causa de muerte</label><textarea id="c-causa"></textarea></div>' +
+    '<div class="campo"><label>Observación</label><textarea id="c-observacion"></textarea></div>' +
+    '<div class="campo"><label>Intervinientes en la UA</label><textarea id="c-intervinientes"></textarea></div>' +
+    '<div class="botonera">' +
+    '<button class="btn ok" onclick="guardarCaso()">Asignar caso</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+  prellenarVencimiento();
+}
+
+function prellenarVencimiento() {
+  var el = document.getElementById('c-vencimiento');
+  var def = document.getElementById('c-defuncion');
+  if (!el || !def || el.value) return;
+  var semanas = datos.semanasVencimiento || 5;
+  el.value = isoMasDias(def.value, semanas * 7);
+}
+
+function guardarCaso() {
+  var venc = document.getElementById('c-vencimiento').value;
+  llamarServidor('panelNuevoCaso', [{
+    caso: document.getElementById('c-caso').value,
+    cc: document.getElementById('c-cc').value,
+    edad: document.getElementById('c-edad').value,
+    gestaciones: document.getElementById('c-gestaciones').value,
+    evento: document.getElementById('c-evento').value,
+    fechaDefuncion: document.getElementById('c-defuncion').value,
+    fechaVencimiento: venc,
+    eapb: document.getElementById('c-eapb').value,
+    ipsPrimerNivel: document.getElementById('c-ips1').value,
+    ipsParto: document.getElementById('c-ips2').value,
+    conclusion: document.getElementById('c-conclusion').value,
+    profesional: document.getElementById('c-profesional').value,
+    causaMuerte: document.getElementById('c-causa').value,
+    observacion: document.getElementById('c-observacion').value,
+    intervinientes: document.getElementById('c-intervinientes').value
+  }], function (resultado) {
+    if (!resultado) return;
+    cerrarModal();
+    aviso(resultado.mensaje, 'ok');
+    mostrarPestana('casos');
+    cargar();
+  });
+}
+
+function modalSeguimientoCaso(id) {
+  var c = buscarCaso(id);
+  if (!c) return;
+  abrirModal(
+    '<h3>Seguimiento del caso</h3>' +
+    '<div class="sub">' + esc(c.id) + ' &middot; ' + esc(c.caso) + '</div>' +
+    '<div class="campo"><label>Fecha de realización</label>' +
+    '<input type="date" id="ms-realizacion" value="' + esc(c.fechaRealizacion ? isoDesdeTexto(c.fechaRealizacion) : '') + '"></div>' +
+    '<div class="campo"><label>Seguimiento (%)</label>' +
+    '<input type="text" id="ms-seguimiento" value="' + esc(c.seguimiento) + '" placeholder="Ej: CUMPLIDA AL 100%, 70% COMPROMISO PENDIENTE"></div>' +
+    '<div class="campo"><label>Observación</label><textarea id="ms-observacion">' + esc(c.observacion) + '</textarea></div>' +
+    '<div class="campo"><label>Otros datos relevantes</label><textarea id="ms-otros">' + esc(c.otrosDatos) + '</textarea></div>' +
+    '<div class="campo"><label>Profesional asignado</label><input type="text" id="ms-profesional" value="' + esc(c.profesional) + '"></div>' +
+    '<div class="botonera">' +
+    '<button class="btn ok" onclick="guardarSeguimientoCaso(\'' + esc(id) + '\')">Guardar</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function isoDesdeTexto(t) {
+  var m = String(t).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  return m[3] + '-' + m[2] + '-' + m[1];
+}
+
+function guardarSeguimientoCaso(id) {
+  llamarServidor('panelSeguimientoCaso', [{
+    id: id,
+    fechaRealizacion: document.getElementById('ms-realizacion').value,
+    seguimiento: document.getElementById('ms-seguimiento').value,
+    observacion: document.getElementById('ms-observacion').value,
+    otrosDatos: document.getElementById('ms-otros').value,
+    profesional: document.getElementById('ms-profesional').value
+  }], function (resultado) {
+    if (!resultado) return;
+    cerrarModal();
+    aviso(resultado.mensaje, 'ok');
+    cargar();
+  });
+}
+
+function modalEliminarCaso(id) {
+  var c = buscarCaso(id);
+  if (!c) return;
+  abrirModal(
+    '<h3>Eliminar caso</h3>' +
+    '<div class="sub">' + esc(c.id) + ' &middot; ' + esc(c.caso) + '</div>' +
+    '<div style="font-size:12px;margin-bottom:10px">Se borrará la fila del caso de la hoja <b>Casos</b>. Esta acción no se puede deshacer.</div>' +
+    '<div class="botonera">' +
+    '<button class="btn mal" onclick="confirmarEliminarCaso(\'' + esc(id) + '\')">Sí, eliminar</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function confirmarEliminarCaso(id) {
+  llamarServidor('panelEliminarCaso', [id], function (resultado) {
+    if (!resultado) return;
+    cerrarModal();
+    aviso(resultado.mensaje, 'ok');
+    cargar();
+  });
+}
+
+function renderChips() {
+  var chips = ['TODAS'].concat(datos.estados);
+  document.getElementById('chips-filtro').innerHTML = chips.map(function (c) {
+    return '<span class="chip' + (filtroEstado === c ? ' activo' : '') + '" onclick="filtrar(\'' + esc(c) + '\')">' + esc(c) + '</span>';
+  }).join('');
+}
+
+function filtrar(valor) {
+  filtroEstado = valor;
+  renderChips();
+  renderAcciones();
+}
+
+function renderAcciones() {
+  var texto = (document.getElementById('buscador').value || '').toLowerCase();
+  var lista = datos.acciones.filter(function (a) {
+    if (filtroEstado !== 'TODAS' && a.estado !== filtroEstado) return false;
+    if (!texto) return true;
+    return (a.id + ' ' + a.institucion + ' ' + a.responsable + ' ' + a.accion + ' ' + a.hallazgo)
+      .toLowerCase().indexOf(texto) >= 0;
+  });
+  var cont = document.getElementById('lista-acciones');
+  if (lista.length === 0) {
+    cont.innerHTML = '<div class="vacio">No se encontraron acciones con ese filtro.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(function (a) {
+    return tarjetaHTML(a, false);
+  }).join('');
+}
+
+function tarjetaHTML(a, mostrarAlerta) {
+  var etiquetas = '';
+  if (mostrarAlerta && a.alerta) {
+    etiquetas += '<span class="etiqueta ' + claseEtiquetaAlerta(a.alerta) + '">' + esc(a.alerta) + '</span>';
+  }
+  etiquetas += '<span class="etiqueta id">' + esc(a.id) + '</span>';
+  etiquetas += '<span class="etiqueta ' + claseEtiquetaEstado(a.estado) + '">' + esc(a.estado) + '</span>';
+  if (a.prioridad === 'Alta') etiquetas += '<span class="etiqueta p-alta">Prioridad alta</span>';
+
+  var diasTexto = 'Sin fecha';
+  if (a.dias !== null && a.dias !== undefined && a.dias !== '') {
+    diasTexto = a.dias >= 0 ? 'Faltan ' + a.dias + ' día(s)' : 'Vencida hace ' + Math.abs(a.dias) + ' día(s)';
+  }
+
+  var carpeta = a.carpeta
+    ? '<a class="enlace" href="' + esc(a.carpeta) + '" target="_blank">Abrir carpeta de evidencias</a>'
+    : '';
+
+  var html = '<div class="tarjeta ' + (a.alerta ? claseAlerta(a.alerta) : claseEstado(a.estado)) + '">';
+  html += '<div class="cabeza"><div class="etiquetas">' + etiquetas + '</div></div>';
+  html += '<div class="inst">' + esc(a.institucion) + '</div>';
+  html += '<div class="resp">Responsable: ' + esc(a.responsable) + (a.evento ? ' &middot; Evento: ' + esc(a.evento) : '') + '</div>';
+  html += '<div class="texto"><b>Hallazgo:</b> ' + esc(a.hallazgo) + '</div>';
+  html += '<div class="texto"><b>Acción:</b> ' + esc(a.accion) + '</div>';
+  if (a.indicador) html += '<div class="texto"><b>Evidencia esperada:</b> ' + esc(a.indicador) + '</div>';
+  if (mostrarAlerta && a.detalleAlerta) html += '<div class="detalle">' + esc(a.detalleAlerta) + '</div>';
+  html += '<div class="meta">' +
+    '<span>&#128197; <b>' + esc(a.fechaLimite) + '</b> (' + esc(diasTexto) + ')</span>' +
+    '<span>&#128206; <b>' + a.evidencias + '</b> evidencia(s)</span>' +
+    '<span>Avance: <b>' + a.avance + '%</b></span>' +
+    '</div>';
+  html += '<div class="barra-avance"><div style="width:' + Math.min(a.avance, 100) + '%"></div></div>';
+  if (a.observaciones) {
+    html += '<div class="texto" style="color:#7F8C8D"><b>Verificación:</b> ' + esc(a.observaciones) +
+      ' (' + esc(a.verificador) + ')</div>';
+  }
+  if (carpeta) html += '<div style="margin-top:6px">' + carpeta + '</div>';
+  html += '<div class="botonera">' + botonesHTML(a) + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function botonesHTML(a) {
+  var b = '';
+  var evidencia = '<button class="btn sec" onclick="pedirArchivo(\'' + esc(a.id) + '\')">&#128206; Subir evidencia</button>';
+  if (a.estado === 'Pendiente') {
+    b += '<button class="btn" onclick="cambiar(\'' + esc(a.id) + '\',\'En ejecución\',{})">Iniciar</button>';
+    b += evidencia;
+  } else if (a.estado === 'En ejecución') {
+    b += evidencia;
+    b += '<button class="btn sec" onclick="modalAvance(\'' + esc(a.id) + '\')">Avance</button>';
+    b += '<button class="btn aviso" onclick="modalReportar(\'' + esc(a.id) + '\')">Reportar finalizada</button>';
+  } else if (a.estado === 'Reportada') {
+    b += evidencia;
+    b += '<button class="btn ok" onclick="modalVerificar(\'' + esc(a.id) + '\')">Verificar</button>';
+    b += '<button class="btn mal" onclick="modalRechazar(\'' + esc(a.id) + '\')">Rechazar</button>';
+    b += '<button class="btn sec" onclick="cambiar(\'' + esc(a.id) + '\',\'En ejecución\',{})">Reabrir</button>';
+  } else if (a.estado === 'Rechazada') {
+    b += evidencia;
+    b += '<button class="btn" onclick="cambiar(\'' + esc(a.id) + '\',\'En ejecución\',{})">Reanudar</button>';
+  } else if (a.estado === 'Verificada') {
+    b += '<span style="font-size:11px;color:#1E8449;font-weight:bold">Efectividad verificada</span>';
+  }
+  return b;
+}
+
+function buscarAccion(id) {
+  for (var i = 0; i < datos.acciones.length; i++) {
+    if (datos.acciones[i].id === id) return datos.acciones[i];
+  }
+  return null;
+}
+
+function cambiar(id, estado, detalle) {
+  llamarServidor('panelCambiarEstado', [id, estado, detalle], function (resultado) {
+    if (!resultado) return;
+    aviso(resultado.mensaje, 'ok');
+    cargar();
+  });
+}
+
+function modalReportar(id) {
+  var a = buscarAccion(id);
+  if (!a) return;
+  if (a.evidencias <= 0) {
+    aviso('Antes de reportar la acción ' + id + ' debes subir al menos una evidencia.', 'error');
+    return;
+  }
+  abrirModal(
+    '<h3>Reportar finalización</h3>' +
+    '<div class="sub">' + esc(a.id) + ' &middot; ' + esc(a.institucion) + '</div>' +
+    '<div class="campo"><label>Fecha de finalización</label>' +
+    '<input type="date" id="m-fecha-reporte"></div>' +
+    '<div class="campo"><label>Avance (%)</label>' +
+    '<input type="number" id="m-avance" value="100" min="0" max="100"></div>' +
+    '<div class="botonera">' +
+    '<button class="btn ok" onclick="confirmarReporte(\'' + esc(id) + '\')">Confirmar reporte</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+  var hoyISO = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  document.getElementById('m-fecha-reporte').value = hoyISO;
+}
+
+function confirmarReporte(id) {
+  cambiarCerrarando(id, 'Reportada', {
+    fechaReporte: document.getElementById('m-fecha-reporte').value,
+    avance: document.getElementById('m-avance').value
+  });
+}
+
+function modalVerificar(id) {
+  var a = buscarAccion(id);
+  if (!a) return;
+  if (a.evidencias <= 0) {
+    aviso('La acción ' + id + ' no tiene evidencias para verificar.', 'error');
+    return;
+  }
+  var guardado = '';
+  try { guardado = localStorage.getItem('radar_verificador') || ''; } catch (e) {}
+  abrirModal(
+    '<h3>Verificar efectividad</h3>' +
+    '<div class="sub">' + esc(a.id) + ' &middot; ' + esc(a.institucion) + '</div>' +
+    '<div class="texto" style="font-size:12px;margin-bottom:8px"><b>Hallazgo:</b> ' + esc(a.hallazgo) + '<br>' +
+    '<b>Acción:</b> ' + esc(a.accion) + '</div>' +
+    '<div class="campo"><label>Verificador *</label>' +
+    '<input type="text" id="m-verificador" value="' + esc(guardado) + '" placeholder="Nombre de quien verifica"></div>' +
+    '<div class="campo"><label>¿La acción responde al hallazgo que la originó? *</label>' +
+    '<select id="m-responde"><option value="Sí">Sí</option><option value="No">No</option></select></div>' +
+    '<div class="campo"><label>¿La acción fue efectiva (evita la recurrencia)? *</label>' +
+    '<select id="m-efectiva"><option value="Sí">Sí</option><option value="No">No</option></select></div>' +
+    '<div class="campo"><label>Observaciones</label>' +
+    '<textarea id="m-observaciones" placeholder="Hallazgos de la revisión de la evidencia"></textarea></div>' +
+    '<div class="botonera">' +
+    '<button class="btn ok" onclick="confirmarVerificacion(\'' + esc(id) + '\')">Verificar como efectiva</button>' +
+    '<button class="btn mal" onclick="confirmarRechazo(\'' + esc(id) + '\')">Rechazar</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function confirmarVerificacion(id) {
+  var verificador = document.getElementById('m-verificador').value.trim();
+  var responde = document.getElementById('m-responde').value;
+  var efectiva = document.getElementById('m-efectiva').value;
+  if (!verificador) { aviso('Indica quién realiza la verificación.', 'error'); return; }
+  if (responde === 'No' || efectiva === 'No') {
+    aviso('Si la respuesta es "No", la acción debe registrarse como RECHAZADA. Usa el botón rojo.', 'error');
+    return;
+  }
+  try { localStorage.setItem('radar_verificador', verificador); } catch (e) {}
+  cambiarCerrarando(id, 'Verificada', {
+    verificador: verificador,
+    responde: responde,
+    efectiva: efectiva,
+    observaciones: document.getElementById('m-observaciones').value
+  });
+}
+
+function modalRechazar(id) {
+  var a = buscarAccion(id);
+  if (!a) return;
+  var guardado = '';
+  try { guardado = localStorage.getItem('radar_verificador') || ''; } catch (e) {}
+  abrirModal(
+    '<h3>Rechazar acción</h3>' +
+    '<div class="sub">' + esc(a.id) + ' &middot; ' + esc(a.institucion) + '</div>' +
+    '<div class="campo"><label>Verificador</label>' +
+    '<input type="text" id="m-verificador" value="' + esc(guardado) + '"></div>' +
+    '<div class="campo"><label>¿Responde al hallazgo?</label>' +
+    '<select id="m-responde"><option value="No">No</option><option value="Sí">Sí</option></select></div>' +
+    '<div class="campo"><label>Motivo del rechazo *</label>' +
+    '<textarea id="m-observaciones" placeholder="Qué falta o por qué la evidencia no respalda la acción"></textarea></div>' +
+    '<div class="botonera">' +
+    '<button class="btn mal" onclick="confirmarRechazo(\'' + esc(id) + '\')">Confirmar rechazo</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function confirmarRechazo(id) {
+  var verificador = document.getElementById('m-verificador').value.trim();
+  var observaciones = document.getElementById('m-observaciones').value.trim();
+  if (!observaciones) { aviso('Debes indicar el motivo del rechazo.', 'error'); return; }
+  var respondeEl = document.getElementById('m-responde');
+  cambiarCerrarando(id, 'Rechazada', {
+    verificador: verificador || 'Equipo de seguimiento',
+    responde: respondeEl ? respondeEl.value : 'No',
+    observaciones: observaciones
+  });
+}
+
+function modalAvance(id) {
+  var a = buscarAccion(id);
+  if (!a) return;
+  abrirModal(
+    '<h3>Actualizar avance</h3>' +
+    '<div class="sub">' + esc(a.id) + ' &middot; Avance actual: ' + a.avance + '%</div>' +
+    '<div class="campo"><label>Nuevo avance (%)</label>' +
+    '<input type="number" id="m-pct" min="0" max="100" value="' + a.avance + '"></div>' +
+    '<div class="botonera">' +
+    '<button class="btn ok" onclick="confirmarAvance(\'' + esc(id) + '\')">Guardar</button>' +
+    '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function confirmarAvance(id) {
+  var pct = document.getElementById('m-pct').value;
+  llamarServidor('actualizarAvance', [id, pct], function (resultado) {
+    if (!resultado) return;
+    cerrarModal();
+    aviso('Avance actualizado: ' + resultado, 'ok');
+    cargar();
+  });
+}
+
+function cambiarCerrarando(id, estado, detalle) {
+  llamarServidor('panelCambiarEstado', [id, estado, detalle], function (resultado) {
+    if (!resultado) return;
+    cerrarModal();
+    aviso(resultado.mensaje, 'ok');
+    cargar();
+  });
+}
+
+function abrirModal(html) {
+  document.getElementById('modal').innerHTML = html;
+  document.getElementById('capa-modal').classList.remove('oculto');
+}
+
+function cerrarModal() {
+  document.getElementById('capa-modal').classList.add('oculto');
+}
+
+function pedirArchivo(id) {
+  idArchivoPendiente = id;
+  document.getElementById('archivo-oculto').value = '';
+  document.getElementById('archivo-oculto').click();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('archivo-oculto').addEventListener('change', function (ev) {
+    var archivo = ev.target.files[0];
+    if (!archivo || !idArchivoPendiente) return;
+    if (archivo.size > 8 * 1024 * 1024) {
+      aviso('El archivo supera 8 MB. Súbelo directamente a la carpeta de evidencias de la acción.', 'error');
+      idArchivoPendiente = null;
+      return;
+    }
+    var lector = new FileReader();
+    lector.onload = function () {
+      var base64 = lector.result.split(',')[1];
+      var id = idArchivoPendiente;
+      llamarServidor('panelSubirEvidencia', [id, archivo.name, archivo.type, base64], function (resultado) {
+        if (!resultado) return;
+        aviso(resultado.mensaje, 'ok');
+        cargar();
+      });
+    };
+    lector.readAsDataURL(archivo);
+  });
+});
+
+function mostrarFormulario(cual) {
+  document.getElementById('form-accion').classList.toggle('oculto', cual !== 'accion');
+  document.getElementById('form-evento').classList.toggle('oculto', cual !== 'evento');
+  document.getElementById('seg-accion').classList.toggle('activo', cual === 'accion');
+  document.getElementById('seg-evento').classList.toggle('activo', cual === 'evento');
+}
+
+function renderEventos() {
+  var d = document.getElementById('lista-eventos');
+  d.innerHTML = datos.eventos.map(function (e) {
+    return '<option value="' + esc(e.id) + '">' + esc(e.institucion) + ' - ' + esc(e.resumen).substring(0, 60) + '</option>';
+  }).join('');
+}
+
+function guardarAccion(ev) {
+  ev.preventDefault();
+  llamarServidor('panelNuevaAccion', [{
+    idEvento: document.getElementById('f-evento').value,
+    institucion: document.getElementById('f-institucion').value,
+    responsable: document.getElementById('f-responsable').value,
+    hallazgo: document.getElementById('f-hallazgo').value,
+    accion: document.getElementById('f-accion').value,
+    indicador: document.getElementById('f-indicador').value,
+    fechaLimite: document.getElementById('f-fecha').value,
+    prioridad: document.getElementById('f-prioridad').value
+  }], function (resultado) {
+    if (!resultado) return;
+    aviso(resultado.mensaje, 'ok');
+    document.getElementById('form-accion').reset();
+    mostrarPestana('acciones');
+    cargar();
+  });
+  return false;
+}
+
+function guardarEvento(ev) {
+  ev.preventDefault();
+  llamarServidor('panelNuevoEvento', [{
+    fecha: document.getElementById('e-fecha').value,
+    clasificacion: document.getElementById('e-clasificacion').value,
+    tipo: document.getElementById('e-tipo').value,
+    institucion: document.getElementById('e-institucion').value,
+    resumen: document.getElementById('e-resumen').value,
+    estadoUaem: document.getElementById('e-uaem').value
+  }], function (resultado) {
+    if (!resultado) return;
+    aviso(resultado.mensaje, 'ok');
+    document.getElementById('form-evento').reset();
+    mostrarPestana('acciones');
+    cargar();
+  });
+  return false;
+}
+
+cargar();
+</script>
+</body>
+</html>

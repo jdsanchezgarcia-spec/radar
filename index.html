@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar Materno · Iniciar sesión</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:linear-gradient(160deg,#0b3c5d,#1a7fb8);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .caja{background:#fff;border-radius:16px;padding:44px 36px;max-width:400px;width:100%;text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .logo{display:flex;justify-content:center;margin-bottom:16px}
+  h1{font-size:23px;color:#0b3c5d;margin-bottom:6px}
+  .sub{color:#6b8299;font-size:13.5px;margin-bottom:28px;line-height:1.5}
+  #btn{display:flex;justify-content:center;min-height:44px}
+  #msg{margin-top:18px;font-size:13px;color:#c0392b;min-height:18px}
+  .pie{margin-top:26px;font-size:11.5px;color:#95a5b5}
+  .cargando{color:#6b8299;font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="caja">
+  <div class="logo"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#1a7fb8" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#1a7fb8" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
+  <h1>Radar Materno</h1>
+  <p class="sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</p>
+  <div id="btn"><span class="cargando">Cargando…</span></div>
+  <div id="msg"></div>
+  <p class="pie">Accede con tu cuenta Google autorizada.</p>
+</div>
+<script>
+var CLIENT_ID = '706466097702-vsna4815nea6qhqjg7r18otsm6h25sf4.apps.googleusercontent.com';
+var APP_URL = 'https://script.google.com/macros/s/AKfycbx6oAE7tN0WDvDHeF_wtaF6knIiZhUqb1ciEuVDrFp7wuCYTlpwQULLP8R6xQ1fSUDY/exec';
+
+function msg(t, err) {
+  var m = document.getElementById('msg');
+  m.textContent = t || '';
+  m.style.color = err ? '#c0392b' : '#189a5e';
+}
+
+function iniciar() {
+  if (!window.google || !google.accounts || !google.accounts.id) {
+    document.getElementById('btn').innerHTML = '';
+    msg('No se pudo cargar Google. Recarga la página.', true);
+    return;
+  }
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onLogin });
+  document.getElementById('btn').innerHTML = '';
+  google.accounts.id.renderButton(document.getElementById('btn'),
+    { theme: 'outline', size: 'large', width: 280, text: 'continue_with' });
+}
+
+function onLogin(respuesta) {
+  msg('Verificando acceso…');
+  fetch(APP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ accion: 'login', idToken: respuesta.credential })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      if (r && r.ok) {
+        msg('¡Bienvenido! Entrando…');
+        window.location.href = 'app.html?ses=' + encodeURIComponent(r.token);
+      } else {
+        msg((r && r.mensaje) || 'No se pudo iniciar sesión.', true);
+      }
+    })
+    .catch(function (e) { msg(e.message || String(e), true); });
+}
+
+window.addEventListener('load', iniciar);
+</script>
+</body>
+</html>
