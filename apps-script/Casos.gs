@@ -186,7 +186,7 @@ function editarSeguimientoCaso(datos) {
 
 function asignarProfesional(datos, usuario) {
   exigirRol(usuario, [CFG.ROLES.ADMIN]);
-  const id = normalizarTexto(datos.idCaso);
+  const id = normalizarTexto(datos.idCaso || datos.id);
   const reg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) {
     return normalizarTexto(c['ID_Caso']) === id;
   })[0];
