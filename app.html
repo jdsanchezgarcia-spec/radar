@@ -186,7 +186,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
   .sel{flex:1;min-width:calc(50% - 4px)}
 }
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Login por usuario y contraseña (sin Google Sign-In) -->
 </head>
 <body>
 <div id="login" class="login-pantalla">
@@ -332,7 +332,7 @@ function irALogin(){
 function renderBotonLogin(){
   var cont=document.getElementById('btn-google');
   if(!cont)return;
-  cont.innerHTML='<button class="btn btn-login-ext" onclick="irALogin()">Entrar con Google</button>';
+  cont.innerHTML='<button class="btn btn-login-ext" onclick="irALogin()">Iniciar sesión</button>';
 }
 function pintarSesionInicial(arrancar){
   var hecho=false;
@@ -862,7 +862,7 @@ function guardarAsignar(id){
   }).catch(function(e){toast(e.message,true);});
 }
 function modalUsuarios(){
-  var h='<h2>Gestionar usuarios</h2><p class="ayuda">Los profesionales aquí registrados podrán iniciar sesión con su cuenta Google y aparecerán para asignar casos y visitas.</p>';
+  var h='<h2>Gestionar usuarios</h2><p class="ayuda">Los profesionales aquí registrados podrán iniciar sesión con su usuario y contraseña, y aparecerán para asignar casos y visitas.</p>';
   h+='<div id="usuarios-lista" class="cargando">Cargando usuarios...</div>';
   h+='<div class="pie"><button class="btn sec" onclick="cerrarModal()">Cerrar</button><button class="btn" onclick="formAgregarUsuario()">+ Agregar usuario</button></div>';
   abrirModal(h);
@@ -880,7 +880,8 @@ function cargarUsuariosLista(){
         '<span class="v-fecha">'+esc(u.nombre||u.email)+'</span>'+
         '<span class="vacio-sm">'+esc(u.email)+'</span>'+
         '<span class="et '+(u.activo?'verde':'rojo')+'">'+(u.activo?'Activo':'Inactivo')+'</span>'+
-        '<span style="margin-left:auto"><button class="btn mal sm" onclick="quitarUsuario(\''+esc(u.email)+'\')">Quitar</button></span>'+
+        (u.tieneClave?'':'<span class="et gris">Sin contraseña</span>')+
+        '<span style="margin-left:auto"><button class="btn sec sm" onclick="ponerClave(\''+esc(u.email)+'\')">Clave</button> <button class="btn mal sm" onclick="quitarUsuario(\''+esc(u.email)+'\')">Quitar</button></span>'+
         '</div></div>';
     }).join('');
   }).catch(function(e){
@@ -890,18 +891,29 @@ function cargarUsuariosLista(){
 }
 function formAgregarUsuario(){
   var h='<h2>Agregar usuario</h2><div class="grid">';
-  h+=camp('Correo Google','u-email','email','',false);
+  h+=camp('Correo o usuario','u-email','email','',false);
   h+=camp('Nombre completo','u-nombre','text','',false);
   h+=campSelect('Rol','u-rol',['Profesional','Admin'],'Profesional');
+  h+=camp('Contraseña (mínimo 6 caracteres)','u-clave','password','',false);
   h+='</div><div class="pie"><button class="btn sec" onclick="modalUsuarios()">Cancelar</button><button class="btn" onclick="guardarUsuario()">Agregar</button></div>';
   abrirModal(h);
 }
 function guardarUsuario(){
-  var d={email:v('u-email'),nombre:v('u-nombre'),rol:v('u-rol')};
+  var d={email:v('u-email'),nombre:v('u-nombre'),rol:v('u-rol'),clave:v('u-clave')};
   if(!d.email||!d.nombre){toast('Correo y nombre son obligatorios.',true);return;}
+  if(d.clave&&d.clave.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
   apiPost({accion:'agregarUsuario',datos:d}).then(function(r){
     if(r&&r.ok){toast(r.mensaje||'Usuario agregado.');modalUsuarios();}
     else toast((r&&r.mensaje)||'No se pudo agregar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function ponerClave(email){
+  var nueva=prompt('Nueva contraseña para '+email+' (mínimo 6 caracteres):');
+  if(nueva===null)return;
+  if(nueva.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
+  apiPost({accion:'cambiarClave',datos:{email:email,clave:nueva}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Contraseña actualizada.');cargarUsuariosLista();}
+    else toast((r&&r.mensaje)||'No se pudo cambiar la contraseña.',true);
   }).catch(function(e){toast(e.message,true);});
 }
 function quitarUsuario(email){

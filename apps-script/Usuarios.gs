@@ -5,6 +5,7 @@ function listaUsuarios() {
       nombre: normalizarTexto(r['Nombre']),
       rol: normalizarTexto(r['Rol']),
       activo: String(r['Activo']).trim().toUpperCase() !== 'NO',
+      tieneClave: !!String(r['Hash'] || '').trim(),
       fila: r._fila
     };
   });
@@ -24,8 +25,13 @@ function agregarUsuario(datos, usuario) {
   const rol = normalizarTexto(datos.rol) || CFG.ROLES.PROFESIONAL;
   if ([CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL].indexOf(rol) < 0) throw new Error('Rol no válido.');
   if (usuarioPorEmail(email)) throw new Error('El correo ' + email + ' ya está registrado.');
-  hojaPorNombre(CFG.HOJAS.USUARIOS).appendRow([email, nombre, rol, 'Sí', new Date()]);
-  return 'Usuario ' + email + ' agregado como ' + rol + '.';
+  const clave = String(datos.clave || '');
+  if (clave && clave.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
+  const sal = clave ? nuevaSal() : '';
+  const hash = clave ? hashClave(clave, sal) : '';
+  hojaPorNombre(CFG.HOJAS.USUARIOS).appendRow([email, nombre, rol, 'Sí', new Date(), sal, hash]);
+  return 'Usuario ' + email + ' agregado como ' + rol +
+    (clave ? '.' : ' (sin contraseña: asígnala con el botón "Clave").');
 }
 
 function actualizarUsuario(datos, usuario) {
@@ -42,6 +48,7 @@ function actualizarUsuario(datos, usuario) {
   }
   if (datos.activo !== undefined) campos['Activo'] = datos.activo ? 'Sí' : 'No';
   escribirCampos(CFG.HOJAS.USUARIOS, COL.USUARIOS, reg._fila, campos);
+  if (datos.clave) guardarClave(reg, datos.clave);
   return 'Usuario ' + email + ' actualizado.';
 }
 

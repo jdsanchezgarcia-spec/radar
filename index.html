@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Radar Materno · Iniciar sesión</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
@@ -13,10 +12,18 @@
     box-shadow:0 20px 60px rgba(0,0,0,.3)}
   .logo{display:flex;justify-content:center;margin-bottom:16px}
   h1{font-size:23px;color:#0b3c5d;margin-bottom:6px}
-  .sub{color:#6b8299;font-size:13.5px;margin-bottom:28px;line-height:1.5}
-  #btn{display:flex;justify-content:center;min-height:44px}
-  #msg{margin-top:18px;font-size:13px;color:#c0392b;min-height:18px}
-  .pie{margin-top:26px;font-size:11.5px;color:#95a5b5}
+  .sub{color:#6b8299;font-size:13.5px;margin-bottom:26px;line-height:1.5}
+  .campo{text-align:left;margin-bottom:14px}
+  .campo label{display:block;font-size:12.5px;color:#0b3c5d;font-weight:600;margin-bottom:5px}
+  .campo input{width:100%;padding:11px 12px;border:1.5px solid #d5dee6;border-radius:9px;font-size:14.5px;
+    color:#203864;background:#fbfdfe;outline:none;transition:border-color .15s}
+  .campo input:focus{border-color:#1a7fb8;background:#fff}
+  button.ingresar{width:100%;padding:12px;border:0;border-radius:9px;background:#1a7fb8;color:#fff;
+    font-size:15px;font-weight:600;cursor:pointer;transition:background .15s}
+  button.ingresar:hover{background:#0b3c5d}
+  button.ingresar:disabled{background:#9dc2da;cursor:wait}
+  #msg{margin-top:16px;font-size:13px;color:#c0392b;min-height:18px;line-height:1.45}
+  .pie{margin-top:22px;font-size:11.5px;color:#95a5b5;line-height:1.5}
   .cargando{color:#6b8299;font-size:13.5px}
 </style>
 </head>
@@ -25,12 +32,26 @@
   <div class="logo"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#1a7fb8" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#1a7fb8" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
   <h1>Radar Materno</h1>
   <p class="sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</p>
-  <div id="btn"><span class="cargando">Cargando…</span></div>
-  <div id="msg"></div>
-  <p class="pie">Accede con tu cuenta Google autorizada.</p>
+
+  <form id="form" autocomplete="on">
+    <div class="campo">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="username" type="text" placeholder="Correo o nombre de usuario"
+             autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="campo">
+      <label for="clave">Contraseña</label>
+      <input id="clave" name="password" type="password" placeholder="••••••••"
+             autocomplete="current-password" required>
+    </div>
+    <button class="ingresar" id="btn" type="submit">Iniciar sesión</button>
+  </form>
+
+  <div id="msg" role="alert"></div>
+  <p class="pie">Acceso reservado a los usuarios registrados por el administrador.</p>
 </div>
+
 <script>
-var CLIENT_ID = '706466097702-vsna4815nea6qhqjg7r18otsm6h25sf4.apps.googleusercontent.com';
 var APP_URL = 'https://script.google.com/macros/s/AKfycbx6oAE7tN0WDvDHeF_wtaF6knIiZhUqb1ciEuVDrFp7wuCYTlpwQULLP8R6xQ1fSUDY/exec';
 
 function msg(t, err) {
@@ -39,38 +60,41 @@ function msg(t, err) {
   m.style.color = err ? '#c0392b' : '#189a5e';
 }
 
-function iniciar() {
-  if (!window.google || !google.accounts || !google.accounts.id) {
-    document.getElementById('btn').innerHTML = '';
-    msg('No se pudo cargar Google. Recarga la página.', true);
-    return;
-  }
-  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onLogin });
-  document.getElementById('btn').innerHTML = '';
-  google.accounts.id.renderButton(document.getElementById('btn'),
-    { theme: 'outline', size: 'large', width: 280, text: 'continue_with' });
-}
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var usuario = document.getElementById('usuario').value.trim();
+  var clave = document.getElementById('clave').value;
+  var btn = document.getElementById('btn');
 
-function onLogin(respuesta) {
-  msg('Verificando acceso…');
+  if (!usuario || !clave) { msg('Escribe tu usuario y tu contraseña.', true); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+  msg('');
+
   fetch(APP_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ accion: 'login', idToken: respuesta.credential })
+    body: JSON.stringify({ accion: 'login', usuario: usuario, clave: clave })
   })
     .then(function (r) { return r.json(); })
     .then(function (r) {
+      btn.disabled = false;
+      btn.textContent = 'Iniciar sesión';
       if (r && r.ok) {
-        msg('¡Bienvenido! Entrando…');
+        msg('¡Bienvenido ' + (r.nombre || '') + '! Entrando…');
         window.location.href = 'app.html?ses=' + encodeURIComponent(r.token);
       } else {
+        document.getElementById('clave').value = '';
         msg((r && r.mensaje) || 'No se pudo iniciar sesión.', true);
       }
     })
-    .catch(function (e) { msg(e.message || String(e), true); });
-}
-
-window.addEventListener('load', iniciar);
+    .catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = 'Iniciar sesión';
+      msg('Error de conexión: ' + (e.message || String(e)), true);
+    });
+});
 </script>
 </body>
 </html>

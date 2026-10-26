@@ -9,7 +9,7 @@ function apiLeer(accion, p) {
     exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
     return panelDatos(sesion);
   }
-  if (accion === 'appconfig') return { googleClientId: googleClientId() };
+  if (accion === 'appconfig') return { login: 'usuario-clave' };
   if (accion === 'documentacion') {
     const id = normalizarTexto((p && (p.id || p.caso)) || '');
     exigirAccesoCaso(usuario, id);
@@ -52,7 +52,7 @@ function asegurarInstalacion() {
 }
 
 function asegurarHojasNuevas() {
-  crearHoja(CFG.HOJAS.USUARIOS, COL.USUARIOS, [240, 180, 110, 80, 130]);
+  crearHoja(CFG.HOJAS.USUARIOS, COL.USUARIOS, [240, 180, 110, 80, 130, 140, 420]);
   crearHoja(CFG.HOJAS.VISITAS, COL.VISITAS, [95, 90, 100, 120, 160, 300, 260, 240, 160, 150, 90]);
   const hu = hojaPorNombre(CFG.HOJAS.USUARIOS);
   if (hu.getLastRow() < 2) {
@@ -104,7 +104,7 @@ function apiEjecutar(body) {
   const usuario = usuarioDeSesion(body.sesion || datos.sesion || '');
   try {
     if (accion === 'login') {
-      const r = loginConToken(body.idToken || datos.idToken);
+      const r = loginUsuarioClave(datos);
       return { ok: true, token: r.token, email: r.email, nombre: r.nombre, rol: r.rol };
     }
     if (accion === 'logout') {
@@ -162,6 +162,9 @@ function apiEjecutar(body) {
     }
     if (accion === 'eliminarUsuario') {
       return { ok: true, mensaje: eliminarUsuario(body.email || datos.email, usuario) };
+    }
+    if (accion === 'cambiarClave') {
+      return { ok: true, mensaje: cambiarClaveUsuario(datos, usuario) };
     }
     return { ok: false, mensaje: 'Acción desconocida: ' + accion };
   } catch (err) {

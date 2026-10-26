@@ -22,8 +22,6 @@ const CFG = {
 
   TIPOS_VISITA: ['Visita técnica', 'Verificación', 'Seguimiento'],
 
-  GOOGLE_CLIENT_ID: '706466097702-vsna4815nea6qhqjg7r18otsm6h25sf4.apps.googleusercontent.com',
-
   ESTADOS: {
     PENDIENTE: 'Pendiente',
     EJECUCION: 'En ejecución',
@@ -178,7 +176,9 @@ const COL = {
     'Nombre',
     'Rol',
     'Activo',
-    'Fecha registro'
+    'Fecha registro',
+    'Sal',
+    'Hash'
   ],
 
   VISITAS: [

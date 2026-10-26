@@ -1,0 +1,8 @@
+# Nunca subir
+.clasp.json
+node_modules/
+*.xlsx
+*.xls
+*.csv
+.DS_Store
+Thumbs.db

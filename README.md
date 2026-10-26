@@ -7,14 +7,17 @@ como sitio web y funcional.
 
 | Archivo | Qué es |
 |---|---|
-| `index.html` | Pantalla de inicio de sesión con **Acceder con Google** (raíz del sitio) |
+| `index.html` | Pantalla de acceso con **usuario y contraseña** (raíz del sitio) |
 | `app.html` | **Panel completo** (casos, eventos, planes, alertas, visitas, usuarios) |
 | `apps-script/` | Código fuente de Google Apps Script (respaldo, no afecta la web) |
 | `.nojekyll` | Indica a GitHub Pages que publique los archivos tal cual |
 
-**Flujo:** `index.html` → login con Google → `app.html?ses=TOKEN` → panel.
+**Flujo:** `index.html` (usuario + contraseña) → `app.html?ses=TOKEN` → panel.
 Ambas páginas hablan con el Web App de Apps Script
 (`script.google.com/macros/s/AKfycbx6…/exec`) por `fetch`.
+
+> 🔑 Las contraseñas se guardan en la hoja `Usuarios` como **hash SHA-256 + sal**
+> (nunca en claro). El administrador las crea desde el panel: *Usuarios → Clave*.
 
 ---
 
@@ -46,18 +49,19 @@ git push -u origin main
 
 ---
 
-## ⚠️ Pasos obligatorios en Google Cloud
+## Pasos en Google (solo la primera vez)
 
-Para que el botón **"Acceder con Google"** funcione en la nueva dirección:
+1. Abrir el editor de Apps Script y ejecutar **una sola vez**
+   desde el selector de funciones:
 
-1. Ir a https://console.cloud.google.com/apis/credentials
-2. Abrir tu credencial **OAuth 2.0 Client ID**
-3. En *Authorized JavaScript origins* → *Add URI* →
-   `https://TU-USUARIO.github.io` (sin barra al final)
-4. Guardar (tarda ~5 minutos en aplicar)
+   ```
+   asignarClaveInicial('tu-correo@unillanos.edu.co', 'TuClave123')
+   ```
 
-Si usas un nombre de repo distinto, la URI completa sería
-`https://TU-USUARIO.github.io` igualmente (el origen no incluye el repo).
+   Eso crea la contraseña del **primer administrador**.
+2. Entrar a la página con ese usuario y contraseña.
+3. Desde el panel: **Usuarios → + Agregar usuario** (ahí se define la
+   contraseña de cada profesional) o **Usuarios → Clave** para restablecerla.
 
 ---
 
