@@ -179,7 +179,12 @@ function canonizarRol(rol) {
   const r = normalizarTexto(rol).toLowerCase();
   if (r === 'admin' || r === 'administrador') return CFG.ROLES.ADMIN;
   if (r === 'profesional') return CFG.ROLES.PROFESIONAL;
+  if (r === 'visita') return CFG.ROLES.VISITA;
   return normalizarTexto(rol) || CFG.ROLES.PROFESIONAL;
+}
+
+function esVisita(usuario) {
+  return !!usuario && canonizarRol(usuario.rol) === CFG.ROLES.VISITA;
 }
 
 function exigirRol(usuario, rolesPermitidos) {
@@ -195,12 +200,14 @@ function esAdmin(usuario) {
 
 function puedeEditarCaso(usuario, casoProfesional) {
   if (esAdmin(usuario)) return true;
+  if (esVisita(usuario)) return false;
   return !!usuario && normalizarTexto(casoProfesional) === normalizarTexto(usuario.nombre);
 }
 
 function exigirAccesoCaso(usuario, idCaso) {
-  exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
+  exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA]);
   if (esAdmin(usuario)) return;
+  if (esVisita(usuario)) return; // el rol Visita lee todos los casos pero no manipula
   const casoReg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) {
     return normalizarTexto(c['ID_Caso']) === normalizarTexto(idCaso);
   })[0];

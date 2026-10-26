@@ -6,7 +6,7 @@ function apiLeer(accion, p) {
   const sesion = (p && p.sesion) || '';
   const usuario = usuarioDeSesion(sesion);
   if (accion === 'datos' || accion === 'panel') {
-    exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
+    exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA]);
     try {
       return panelDatos(sesion);
     } catch (err) {
@@ -124,6 +124,10 @@ function apiEjecutar(body) {
   const accion = body.accion;
   const datos = body.datos || {};
   const usuario = usuarioDeSesion(body.sesion || datos.sesion || '');
+  // El rol Visita es de solo lectura: solo puede entrar, salir y cambiar su propia clave.
+  if (esVisita(usuario) && ['login', 'registro', 'logout', 'cambiarClave'].indexOf(accion) < 0) {
+    throw new Error('Tu rol Visita es de solo lectura: no puedes modificar información.');
+  }
   try {
     if (accion === 'login') {
       const r = loginUsuarioClave(Object.assign({}, body, datos));
@@ -224,6 +228,10 @@ function apiEjecutar(body) {
       const m = panelCambiarEstado(idA, nuevo, detalle);
       return { ok: true, mensaje: 'Acción ' + m };
     }
+    if (accion === 'notificarVencidos') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      return { ok: true, mensaje: notificarVencidos() };
+    }
     return { ok: false, mensaje: 'Acción desconocida: ' + accion };
   } catch (err) {
     return { ok: false, mensaje: err.message || String(err) };
@@ -290,12 +298,9 @@ function panelDatos(sesion) {
   });
 
   const usuario = usuarioDeSesion(sesion);
-  let casos = listaCasos();
-  if (usuario && usuario.rol !== CFG.ROLES.ADMIN) {
-    casos = casos.filter(function (c) {
-      return normalizarTexto(c.profesional) === normalizarTexto(usuario.nombre);
-    });
-  }
+  // Todos los roles (Admin, Profesional y Visita) ven todos los casos;
+  // la edición se restringe por rol en cada acción.
+  const casos = listaCasos();
 
   return {
     kpi: kpi,

@@ -23,7 +23,7 @@ function agregarUsuario(datos, usuario) {
   if (!email || email.indexOf('@') < 0) throw new Error('Debes indicar un correo válido.');
   const nombre = normalizarTexto(datos.nombre);
   const rol = normalizarTexto(datos.rol) || CFG.ROLES.PROFESIONAL;
-  if ([CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL].indexOf(rol) < 0) throw new Error('Rol no válido.');
+  if ([CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA].indexOf(rol) < 0) throw new Error('Rol no válido.');
   if (usuarioPorEmail(email)) throw new Error('El correo ' + email + ' ya está registrado.');
   const clave = String(datos.clave || '');
   if (clave && clave.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
@@ -43,7 +43,7 @@ function actualizarUsuario(datos, usuario) {
   if (datos.nombre !== undefined) campos['Nombre'] = normalizarTexto(datos.nombre);
   if (datos.rol !== undefined) {
     const rol = normalizarTexto(datos.rol);
-    if ([CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL].indexOf(rol) < 0) throw new Error('Rol no válido.');
+    if ([CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA].indexOf(rol) < 0) throw new Error('Rol no válido.');
     campos['Rol'] = rol;
   }
   if (datos.activo !== undefined) campos['Activo'] = datos.activo ? 'Sí' : 'No';

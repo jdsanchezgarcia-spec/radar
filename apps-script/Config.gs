@@ -17,7 +17,8 @@ const CFG = {
 
   ROLES: {
     ADMIN: 'Admin',
-    PROFESIONAL: 'Profesional'
+    PROFESIONAL: 'Profesional',
+    VISITA: 'Visita'
   },
 
   TIPOS_VISITA: ['Visita técnica', 'Verificación', 'Seguimiento'],

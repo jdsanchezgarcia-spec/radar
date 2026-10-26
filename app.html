@@ -118,7 +118,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .tarjeta.t-ok{border-left-color:var(--verde)}
 .etiqs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .et{font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;display:inline-flex;align-items:center;gap:4px}
-.et.rojo{background:var(--rojo-bg);color:var(--rojo)}.et.verde{background:var(--verde-bg);color:var(--verde)}.et.amarillo{background:var(--amarillo-bg);color:var(--amarillo)}.et.naranja{background:var(--naranja-bg);color:var(--naranja)}.et.azul{background:#e4f0f9;color:var(--azul2)}.et.gris{background:#eaeff4;color:var(--gris)}
+.et.rojo{background:var(--rojo-bg);color:var(--rojo)}.et.verde{background:var(--verde-bg);color:var(--verde)}.et.amarillo{background:var(--amarillo-bg);color:var(--amarillo)}.et.naranja{background:var(--naranja-bg);color:var(--naranja)}.et.azul{background:#e4f0f9;color:var(--azul2)}.et.gris{background:#eaeff4;color:var(--gris)}.et.naranja-claro{background:#fdeeda;color:#e67e22}.et.naranja-rojo{background:#fbe2d5;color:#d35400}.et.casi-rojo{background:#fdedec;color:#e74c3c}.campana{font-size:11px;font-weight:700;color:var(--rojo);margin-left:6px;white-space:nowrap}
 .titulo{font-size:17px;font-weight:800;color:var(--azul3);margin:2px 0 6px;letter-spacing:-.01em;line-height:1.3}
 .grupo{margin-top:14px}
 .gt{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;color:var(--azul2);display:flex;align-items:center;gap:6px;padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid var(--borde)}
@@ -279,10 +279,10 @@ function cerrarSesionUI(){
   var t=sesionToken();
   apiPost({accion:'logout',sesion:t}).catch(function(){});
   SESION=null;try{sessionStorage.removeItem('radar_sesion');}catch(e){}
-  pintarUsuario();document.getElementById('login').style.display='flex';
-  document.getElementById('app').style.display='none';
+  try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
 }
 function esAdmin(){return !!SESION&&SESION.rol==='Admin';}
+function esVisita(){return !!SESION&&SESION.rol==='Visita';}
 function apiGet(accion,id){
   var u=API+'?accion='+encodeURIComponent(accion);
   if(id)u+='&id='+encodeURIComponent(id);
@@ -517,16 +517,31 @@ function renderCasos(){
   h+='</div>';
   document.getElementById('v-casos').innerHTML=h;
 }
+function clasifCaso(c){
+  if(c.fechaRealizacion)return{cls:'verde',texto:'Realizado',bell:false,bellTxt:''};
+  var est=String(c.estado||'');
+  var tipo='';
+  ['Visita técnica','Verificación','Seguimiento'].forEach(function(t){
+    if(!tipo&&est.toLowerCase().indexOf(t.toLowerCase())>=0)tipo=t;
+  });
+  var sub=tipo?' · '+tipo:'';
+  var d=c.dias;
+  if(d===null||d===undefined||!c.fechaVencimiento)return{cls:'amarillo',texto:'Pendiente'+sub,bell:false,bellTxt:''};
+  if(d<0)return{cls:'rojo',texto:'Vencido'+sub,bell:true,bellTxt:'vencido hace '+Math.abs(d)+' días'};
+  if(d<=5)return{cls:'casi-rojo',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
+  if(d<=7)return{cls:'naranja-rojo',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
+  if(d<=10)return{cls:'naranja-claro',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
+  return{cls:'amarillo',texto:'Pendiente'+sub,bell:false,bellTxt:''};
+}
 function filaCaso(c){
-  var est=c.estado||(c.fechaRealizacion?'Gestionado':'Pendiente');
+  var cl=clasifCaso(c);
   var e='<div class="caso-item" id="item-'+esc(c.id)+'">';
   e+='<div class="caso-cab" onclick="toggleCaso(\''+esc(c.id)+'\')">';
   e+='<span class="caso-caret" id="caret-'+esc(c.id)+'">›</span>';
   e+='<span class="caso-nombre">'+esc(c.caso)+'</span>';
   e+='<span class="caso-ets">';
-  e+='<span class="et '+claseEstado(est)+'">'+esc(est)+'</span>';
-  if(c.alerta)e+='<span class="et '+claseEt(c.alerta)+'">'+esc(c.alerta)+'</span>';
-  e+='<span class="et '+(c.fechaRealizacion?'verde':'gris')+'">'+(c.fechaRealizacion?'Realizado':'Pendiente')+'</span>';
+  e+='<span class="et '+cl.cls+'">'+esc(cl.texto)+'</span>';
+  if(cl.bell)e+='<span class="campana">🔔 '+esc(cl.bellTxt)+'</span>';
   e+='<span class="et azul">'+esc(c.id)+'</span>';
   e+='</span></div>';
   e+='<div class="caso-det" id="det-'+esc(c.id)+'" style="display:none"></div>';
@@ -568,12 +583,11 @@ function tarjetaCaso(c){
   var dias='';
   if(c.dias!==null&&c.dias!==undefined)dias=c.dias>=0?' (vence en '+c.dias+' d)':' (vencido hace '+Math.abs(c.dias)+' d)';
   var e='<div class="tarjeta '+(c.alerta?claseAlerta(c.alerta):(c.fechaRealizacion?'t-ok':''))+'">';
-  var est=c.estado||(c.fechaRealizacion?'Gestionado':'Pendiente');
+  var cl=clasifCaso(c);
   e+='<div class="etiqs">';
-  e+='<span class="et '+claseEstado(est)+'">'+esc(est)+'</span>';
-  if(c.alerta)e+='<span class="et '+claseEt(c.alerta)+'">'+esc(c.alerta)+'</span>';
+  e+='<span class="et '+cl.cls+'">'+esc(cl.texto)+'</span>';
+  if(cl.bell)e+='<span class="campana">🔔 '+esc(cl.bellTxt)+'</span>';
   e+='<span class="et azul">'+esc(c.id)+'</span>';
-  e+='<span class="et '+(c.fechaRealizacion?'verde':'gris')+'">'+(c.fechaRealizacion?'Realizado':'Pendiente')+'</span>';
   e+='</div>';
   e+='<div class="titulo">'+esc(c.caso)+'</div>';
   e+=c.profesional
@@ -597,6 +611,7 @@ function tarjetaCaso(c){
 }
 
 function puedeEditarUI(c){
+  if(esVisita())return false;
   if(esAdmin())return true;
   return !!(SESION&&SESION.nombre&&c&&SESION.nombre===c.profesional);
 }
@@ -652,7 +667,7 @@ function modalNuevo(){
   h+=camp('Fecha asignación','n-asig','date');
   h+=camp('Fecha vencimiento','n-venc','date');
   h+=camp('Fecha realización','n-real','date');
-  h+=campSelect('Período epidemiológico','n-per',valoresDe('periodo'),'');
+  h+=campSelect('Período epidemiológico','n-per',valoresDe('periodo').filter(function(p){return !/semana/i.test(p);}),'');
   h+=campSelect('EAPB','n-eapb',valoresDe('eapb'),'');
   h+=campSelect('IPS 1er nivel','n-ips1',valoresIps('ipsPrimerNivel'),'');
   h+=campSelect('IPS parto','n-ips2',valoresIps('ipsParto'),'');
@@ -917,7 +932,7 @@ function formAgregarUsuario(){
   var h='<h2>Agregar usuario</h2><div class="grid">';
   h+=camp('Correo o usuario','u-email','email','',false);
   h+=camp('Nombre completo','u-nombre','text','',false);
-  h+=campSelect('Rol','u-rol',['Profesional','Admin'],'Profesional');
+  h+=campSelect('Rol','u-rol',['Profesional','Admin','Visita'],'Profesional');
   h+=camp('Contraseña (mínimo 6 caracteres)','u-clave','password','',false);
   h+='</div><div class="pie"><button class="btn sec" onclick="modalUsuarios()">Cancelar</button><button class="btn" onclick="guardarUsuario()">Agregar</button></div>';
   abrirModal(h);
@@ -1039,6 +1054,7 @@ function claseEstadoAccion(est){
   return {'Pendiente':'amarillo','En ejecución':'azul','Reportada':'naranja','Verificada':'verde','Rechazada':'rojo'}[est]||'gris';
 }
 function esResponsableUI(a){
+  if(esVisita())return false;
   if(esAdmin())return true;
   return !!(SESION&&SESION.nombre&&a&&String(SESION.nombre).trim().toLowerCase()===String(a.responsable||'').trim().toLowerCase());
 }
