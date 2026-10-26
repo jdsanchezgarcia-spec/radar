@@ -674,26 +674,30 @@ function campSelect(lb,id,valores,val,full){
   return '<div class="camp'+(full?' full':'')+'"><label>'+lb+'</label><select id="'+id+'">'+opts+'</select></div>';
 }
 
+function catLista(key, fallback) {
+  var c = (DATOS.catalogos && DATOS.catalogos[key]) || [];
+  return c.length ? c : (fallback || []);
+}
 function modalNuevo(){
-  var h='<h2>Nuevo caso</h2><p class="ayuda">Los campos con * son obligatorios.</p><div class="grid">';
+  var h='<h2>Nuevo caso</h2><p class="ayuda">Los campos con * son obligatorios. Las listas desplegables salen de la hoja Catálogos del Excel.</p><div class="grid">';
   h+=camp('Nombre del caso *','n-caso','text','',true);
   h+=camp('Cédula *','n-cc','text');
-  h+=campSelect('Estado del seguimiento','n-estado',DATOS.estadosCaso||[],(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
+  h+=campSelect('Estado del seguimiento','n-estado',catLista('estadosCaso',DATOS.estadosCaso||[]),(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
   h+=camp('Edad','n-edad','number');
   h+=camp('Gestaciones','n-gest','text');
-  h+=campSelect('Evento (CIE)','n-evento',valoresDe('evento'),'');
+  h+=campSelect('Evento (CIE)','n-evento',catLista('eventos',valoresDe('evento')),'');
   h+=camp('Fecha defunción *','n-def','date');
   h+=camp('Fecha asignación','n-asig','date');
   h+=camp('Fecha vencimiento','n-venc','date');
   h+=camp('Fecha realización','n-real','date');
-  h+=campSelect('Período epidemiológico','n-per',valoresDe('periodo').filter(function(p){return !/semana/i.test(p);}),'');
-  h+=campSelect('EAPB','n-eapb',valoresDe('eapb'),'');
-  h+=campSelect('IPS 1er nivel','n-ips1',valoresIps('ipsPrimerNivel'),'');
-  h+=campSelect('IPS parto','n-ips2',valoresIps('ipsParto'),'');
+  h+=campSelect('Período epidemiológico','n-per',catLista('periodos',valoresDe('periodo')).filter(function(p){return !/semana/i.test(p);}),'');
+  h+=campSelect('EAPB','n-eapb',catLista('eapbs',valoresDe('eapb')),'');
+  h+=campSelect('IPS 1er nivel','n-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),'');
+  h+=campSelect('IPS parto','n-ips2',catLista('ipsParto',valoresIps('ipsParto')),'');
   h+=camp('Observación','n-obs','textarea','',true);
   h+=camp('Causa de muerte','n-causa','textarea','',true);
-  h+=campSelect('Conclusión UA','n-conc',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL']),'');
-  h+=campSelect('Profesional asignado','n-prof',nombresProfesionales(),'');
+  h+=campSelect('Conclusión UA','n-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),'');
+  h+=campSelect('Profesional asignado','n-prof',catLista('profesionales',nombresProfesionales()),'');
   h+=camp('Intervinientes UA','n-inter','textarea','',true);
   h+=camp('Seguimiento','n-seg','textarea','',true);
   h+=camp('Otros datos','n-otros','textarea','',true);
@@ -759,22 +763,22 @@ function modalSeg(id){
   var h='<h2>Editar caso · '+esc(c.id)+'</h2><p class="ayuda">'+esc(c.caso)+'</p><div class="grid">';
   h+=camp('Nombre del caso','s-caso','text',c.caso,true);
   h+=camp('Cédula','s-cc','text',c.cc);
-  h+=campSelect('Estado del seguimiento','s-estado',DATOS.estadosCaso||[],c.estado||(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
+  h+=campSelect('Estado del seguimiento','s-estado',catLista('estadosCaso',DATOS.estadosCaso||[]),c.estado||(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
   h+=camp('Edad','s-edad','number',c.edad);
   h+=camp('Gestaciones','s-gest','text',c.gestaciones);
-  h+=campSelect('Evento (CIE)','s-evento',valoresDe('evento'),c.evento);
+  h+=campSelect('Evento (CIE)','s-evento',catLista('eventos',valoresDe('evento')),c.evento);
   h+=camp('Fecha defunción','s-def','date',aInputFecha(c.fechaDefuncion));
   h+=camp('Fecha asignación','s-asig','date',aInputFecha(c.fechaAsignacion));
   h+=camp('Fecha vencimiento','s-venc','date',aInputFecha(c.fechaVencimiento));
   h+=camp('Fecha realización','s-real','date',aInputFecha(c.fechaRealizacion));
-  h+=campSelect('Período epidemiológico','s-per',valoresDe('periodo'),c.periodo);
-  h+=campSelect('EAPB','s-eapb',valoresDe('eapb'),c.eapb);
-  h+=campSelect('IPS 1er nivel','s-ips1',valoresIps('ipsPrimerNivel'),c.ipsPrimerNivel);
-  h+=campSelect('IPS parto','s-ips2',valoresIps('ipsParto'),c.ipsParto);
+  h+=campSelect('Período epidemiológico','s-per',catLista('periodos',valoresDe('periodo')).filter(function(p){return !/semana/i.test(p);}),c.periodo);
+  h+=campSelect('EAPB','s-eapb',catLista('eapbs',valoresDe('eapb')),c.eapb);
+  h+=campSelect('IPS 1er nivel','s-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),c.ipsPrimerNivel);
+  h+=campSelect('IPS parto','s-ips2',catLista('ipsParto',valoresIps('ipsParto')),c.ipsParto);
   h+=camp('Observación','s-obs','textarea',c.observacion,true);
   h+=camp('Causa de muerte','s-causa','textarea',c.causaMuerte,true);
-  h+=campSelect('Conclusión UA','s-conc',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL']),c.conclusion);
-  h+=campSelect('Profesional asignado','s-prof',nombresProfesionales(),c.profesional);
+  h+=campSelect('Conclusión UA','s-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),c.conclusion);
+  h+=campSelect('Profesional asignado','s-prof',catLista('profesionales',nombresProfesionales()),c.profesional);
   h+=camp('Intervinientes UA','s-inter','textarea',c.intervinientes,true);
   h+=camp('Seguimiento','s-seg','textarea',c.seguimiento,true);
   h+=camp('Otros datos','s-otros','textarea',c.otrosDatos,true);

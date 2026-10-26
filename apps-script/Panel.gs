@@ -7,6 +7,7 @@ function apiLeer(accion, p) {
   const usuario = usuarioDeSesion(sesion);
   if (accion === 'datos' || accion === 'panel') {
     exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA]);
+    asegurarCatalogos(); // crea la hoja Catálogos en la primera carga si no existe
     try {
       return panelDatos(sesion);
     } catch (err) {
@@ -64,6 +65,7 @@ function asegurarInstalacion() {
 function asegurarHojasNuevas() {
   crearHoja(CFG.HOJAS.USUARIOS, COL.USUARIOS, [240, 180, 110, 80, 130, 140, 420]);
   crearHoja(CFG.HOJAS.VISITAS, COL.VISITAS, [95, 90, 100, 120, 160, 300, 260, 240, 160, 150, 90]);
+  asegurarCatalogos();
   const hu = hojaPorNombre(CFG.HOJAS.USUARIOS);
   if (hu.getLastRow() < 2) {
     let email = '';
@@ -312,6 +314,7 @@ function panelDatos(sesion) {
     estados: [CFG.ESTADOS.PENDIENTE, CFG.ESTADOS.EJECUCION, CFG.ESTADOS.REPORTADA, CFG.ESTADOS.VERIFICADA, CFG.ESTADOS.RECHAZADA],
     estadosCaso: CFG.ESTADOS_CASO,
     ipsPais: COL.IPS_PAIS,
+    catalogos: leerCatalogo(),
     tiposVisita: CFG.TIPOS_VISITA,
     profesionales: profesionales(),
     usuario: usuario,

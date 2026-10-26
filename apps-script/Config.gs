@@ -12,7 +12,8 @@ const CFG = {
     TABLERO: 'Tablero',
     CONFIG: 'Config',
     USUARIOS: 'Usuarios',
-    VISITAS: 'Visitas'
+    VISITAS: 'Visitas',
+    CATALOGOS: 'Catalogos'
   },
 
   ROLES: {
