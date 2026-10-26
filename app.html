@@ -228,6 +228,8 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
     <input class="buscar" id="buscar" placeholder="Buscar por nombre, cédula, EAPB, profesional..." oninput="render()">
     <button class="btn" onclick="render()">Buscar</button>
     <span id="btn-nuevo-wrap"><button class="btn sec" onclick="modalNuevo()">+ Nuevo caso</button></span>
+    <span id="btn-evento-wrap" style="display:none"><button class="btn sec" onclick="modalNuevoEvento()">+ Nuevo evento</button></span>
+    <span id="btn-accion-wrap" style="display:none"><button class="btn sec" onclick="modalNuevaAccion()">+ Nueva acción</button></span>
   </div>
 
   <div class="filtros">
@@ -341,6 +343,10 @@ function pintarUsuario(){
   if(nb)nb.style.display=esAdmin()?'':'none';
   var ub=document.getElementById('btn-usuarios-wrap');
   if(ub)ub.style.display=esAdmin()?'':'none';
+  var evb=document.getElementById('btn-evento-wrap');
+  if(evb)evb.style.display=esAdmin()?'':'none';
+  var acb=document.getElementById('btn-accion-wrap');
+  if(acb)acb.style.display=esAdmin()?'':'none';
 }
 function irALogin(){
   try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
@@ -1155,6 +1161,50 @@ function guardarVerificacion(idAccion,aprobar){
   apiPost({accion:'cambiarEstadoAccion',idAccion:idAccion,estado:aprobar?'Verificada':'Rechazada',detalle:detalle})
     .then(function(r){if(r.ok){toast(r.mensaje);cerrarModal();cargar();}else toast(r.mensaje,true);})
     .catch(function(e){toast(e.message,true);});
+}
+// ---------------- Crear eventos y acciones desde la web (admin) ----------------
+function modalNuevoEvento(){
+  var h='<h2>Registrar evento</h2><p class="ayuda">Evento materno o perinatal que dispara el análisis y el plan de mejora.</p><div class="grid">';
+  h+=camp('Fecha del evento','ev-fecha','date',new Date().toISOString().slice(0,10));
+  h+=campSelect('Clasificación','ev-clase',['Materno','Perinatal'],'Materno');
+  h+=camp('Institución donde ocurrió *','ev-inst','text','',true);
+  h+=camp('Resumen del evento *','ev-res','textarea','',true);
+  h+=camp('Observaciones','ev-obs','textarea','',true);
+  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarEvento()">Guardar evento</button></div>';
+  abrirModal(h);
+}
+function guardarEvento(){
+  var d={fecha:v('ev-fecha'),clasificacion:v('ev-clase'),institucion:v('ev-inst'),resumen:v('ev-res'),observaciones:v('ev-obs')};
+  apiPost({accion:'nuevoEvento',datos:d}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Evento registrado.');cerrarModal();cargar();}
+    else toast((r&&r.mensaje)||'No se pudo registrar el evento.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function modalNuevaAccion(){
+  var evs=(DATOS.eventos||[]);
+  var prods=(DATOS.profesionales||[]).map(function(p){return p&&p.nombre?p.nombre:String(p||'');}).filter(function(x){return x;});
+  var h='<h2>Registrar acción de mejora</h2><p class="ayuda">Los campos con * son obligatorios. El responsable debe estar registrado como profesional para poder subir evidencias desde la web.</p><div class="grid">';
+  h+='<div class="camp full"><label>Evento asociado (opcional)</label><select id="ac-ev" onchange="prefInstEvento(this.value)"><option value=""></option>'+evs.map(function(e){return '<option value="'+esc(e.id)+'">'+esc(e.id+' · '+e.institucion)+'</option>';}).join('')+'</select></div>';
+  h+=camp('Hallazgo identificado *','ac-hallazgo','textarea','',true);
+  h+=camp('Acción propuesta *','ac-accion','textarea','',true);
+  h+=camp('Institución responsable *','ac-inst','text','',true);
+  h+=campSelect('Responsable asignado *','ac-resp',prods,'');
+  h+=camp('Fecha límite *','ac-limite','date');
+  h+=campSelect('Prioridad','ac-prio',['Alta','Media','Baja'],'Media');
+  h+=camp('Indicador / evidencia esperada','ac-ind','text','',true);
+  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarAccion()">Guardar acción</button></div>';
+  abrirModal(h);
+}
+function prefInstEvento(idEv){
+  var e=(DATOS.eventos||[]).filter(function(x){return x.id===idEv;})[0];
+  if(e&&!v('ac-inst'))document.getElementById('ac-inst').value=e.institucion||'';
+}
+function guardarAccion(){
+  var d={idEvento:v('ac-ev'),hallazgo:v('ac-hallazgo'),accion:v('ac-accion'),institucion:v('ac-inst'),responsable:v('ac-resp'),fechaLimite:v('ac-limite'),prioridad:v('ac-prio'),indicador:v('ac-ind')};
+  apiPost({accion:'nuevaAccion',datos:d}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Acción registrada.');cerrarModal();setVista('planes');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo registrar la acción.',true);
+  }).catch(function(e){toast(e.message,true);});
 }
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)cerrarModal();});
 init();

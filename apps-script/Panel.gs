@@ -143,6 +143,16 @@ function apiEjecutar(body) {
       construirTablero();
       return { ok: true, id: id, mensaje: 'Caso ' + id + ' creado.' };
     }
+    if (accion === 'nuevoEvento') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const id = panelNuevoEvento(datos);
+      return { ok: true, id: id, mensaje: 'Evento ' + id + ' registrado.' };
+    }
+    if (accion === 'nuevaAccion') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const id = panelNuevaAccion(datos);
+      return { ok: true, id: id, mensaje: 'Acción ' + id + ' registrada.' };
+    }
     if (accion === 'editarSeguimiento') {
       const id = normalizarTexto(datos.id);
       const casoReg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) { return normalizarTexto(c['ID_Caso']) === id; })[0];
