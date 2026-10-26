@@ -72,6 +72,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .tabs{display:flex;gap:8px;margin:0 0 12px}
 .tab{border:1.5px solid #d5dee6;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--azul2);font-family:inherit}
 .tab.on{background:var(--azul2);color:#fff;border-color:var(--azul2)}
+.btn.sm.on{background:var(--azul2);color:#fff}
 
 .filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center;padding:12px;background:var(--sup);border:1px solid var(--borde);border-radius:var(--r2);box-shadow:var(--sh1)}
 .sel{padding:9px 11px;border:1px solid var(--borde2);border-radius:7px;font-size:12.5px;background:var(--sup);color:var(--texto);font-family:inherit;cursor:pointer;max-width:100%;transition:border var(--tr),box-shadow var(--tr)}
@@ -253,6 +254,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
       <option value="vencimiento">Por fecha de vencimiento</option>
       <option value="nombre">Por nombre (A-Z)</option>
     </select>
+    <button class="btn sec sm" id="btn-mis-casos" style="display:none" onclick="toggleMisCasos()">Mis casos asignados</button>
     <button class="btn sec sm" onclick="limpiarFiltros()">Limpiar filtros</button>
   </div>
 
@@ -347,6 +349,8 @@ function pintarUsuario(){
   if(evb)evb.style.display=esAdmin()?'':'none';
   var acb=document.getElementById('btn-accion-wrap');
   if(acb)acb.style.display=esAdmin()?'':'none';
+  var mb=document.getElementById('btn-mis-casos');
+  if(mb)mb.style.display=(SESION&&!esAdmin())?'':'none';
 }
 function irALogin(){
   try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
@@ -490,6 +494,13 @@ function limpiarFiltros(){
   renderKpis();
   render();
 }
+var SOLO_MIOS=false;
+function toggleMisCasos(){
+  SOLO_MIOS=!SOLO_MIOS;
+  var b=document.getElementById('btn-mis-casos');
+  if(b)b.classList.toggle('on',SOLO_MIOS);
+  render();
+}
 var VISTA='casos';
 function setVista(v){VISTA=v;document.getElementById('tab-casos').classList.toggle('on',v==='casos');document.getElementById('tab-planes').classList.toggle('on',v==='planes');render();}
 function render(){if(VISTA==='planes')renderPlanes();else renderCasos();}
@@ -508,6 +519,10 @@ function renderCasos(){
     return;
   }
   var casos=(DATOS.casos||[]).filter(filtro);
+  if(SOLO_MIOS&&SESION&&SESION.nombre){
+    var yo=String(SESION.nombre).trim().toLowerCase();
+    casos=casos.filter(function(c){return String(c.profesional||'').trim().toLowerCase()===yo;});
+  }
   casos.sort(ordenar);
   if(!casos.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay casos que coincidan con los filtros.</div>';return;}
   var total=(DATOS.casos||[]).length;
