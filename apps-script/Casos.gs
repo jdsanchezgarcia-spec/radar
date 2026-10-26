@@ -222,12 +222,14 @@ function kpiCasos() {
 
 function kpiDesdeLista(casos) {
   const kpi = { total: casos.length, realizados: 0, pendientes: 0, vencidos: 0, proximos: 0 };
-  const diasAlerta = diasAlertaVencimiento();
   casos.forEach(function (c) {
-    if (c.fechaRealizacion) { kpi.realizados++; return; }
+    const est = String(c.estado || '').toLowerCase();
+    if (/realizado/.test(est) || c.fechaRealizacion) { kpi.realizados++; return; }
+    if (/vencid/.test(est)) { kpi.vencidos++; return; }
+    if (/proximo|próximo|a vencer/.test(est)) { kpi.proximos++; return; }
     const d = c.dias;
     if (d !== null && d !== undefined && d < 0) { kpi.vencidos++; return; }
-    if (d !== null && d !== undefined && d <= diasAlerta) { kpi.proximos++; return; }
+    if (d !== null && d !== undefined && d <= 10) { kpi.proximos++; return; }
     kpi.pendientes++;
   });
   return kpi;

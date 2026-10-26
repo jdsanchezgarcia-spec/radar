@@ -428,10 +428,10 @@ function tienePlan(c){
   });
 }
 function filtro(c){
-  if(FILTRO_KPI==='realizado'&&!c.fechaRealizacion)return false;
-  if(FILTRO_KPI==='vencido'&&(c.fechaRealizacion||c.dias===null||c.dias>=0))return false;
-  if(FILTRO_KPI==='proximo'&&(c.fechaRealizacion||c.dias===null||c.dias<0||c.dias>15))return false;
-  if(FILTRO_KPI==='pendiente'&&(c.fechaRealizacion||(c.dias!==null&&c.dias<=15)))return false;
+  if(FILTRO_KPI==='realizado'&&grupoCaso(c)!=='realizado')return false;
+  if(FILTRO_KPI==='vencido'&&grupoCaso(c)!=='vencido')return false;
+  if(FILTRO_KPI==='proximo'&&grupoCaso(c)!=='proximo')return false;
+  if(FILTRO_KPI==='pendiente'&&grupoCaso(c)!=='pendiente')return false;
   if(FILTRO_KPI==='planes'&&!tienePlan(c))return false;
   var q=(document.getElementById('buscar').value||'').toLowerCase();
   if(q){
@@ -533,20 +533,34 @@ function renderCasos(){
   h+='</div>';
   document.getElementById('v-casos').innerHTML=h;
 }
+function grupoCaso(c){
+  var est=String(c.estado||'').toLowerCase();
+  if(/realizado/.test(est)||c.fechaRealizacion)return'realizado';
+  if(/vencid/.test(est))return'vencido';
+  if(/proximo|próximo|a vencer/.test(est))return'proximo';
+  var d=c.dias;
+  if(d!==null&&d!==undefined){
+    if(d<0)return'vencido';
+    if(d<=10)return'proximo';
+  }
+  return'pendiente';
+}
 function clasifCaso(c){
-  if(c.fechaRealizacion)return{cls:'verde',texto:'Realizado',bell:false,bellTxt:''};
   var est=String(c.estado||'');
+  var eLow=est.toLowerCase();
   var tipo='';
   ['Visita técnica','Verificación','Seguimiento'].forEach(function(t){
-    if(!tipo&&est.toLowerCase().indexOf(t.toLowerCase())>=0)tipo=t;
+    if(!tipo&&eLow.indexOf(t.toLowerCase())>=0)tipo=t;
   });
   var sub=tipo?' · '+tipo:'';
   var d=c.dias;
-  if(d===null||d===undefined||!c.fechaVencimiento)return{cls:'amarillo',texto:'Pendiente'+sub,bell:false,bellTxt:''};
-  if(d<0)return{cls:'rojo',texto:'Vencido'+sub,bell:true,bellTxt:'vencido hace '+Math.abs(d)+' días'};
-  if(d<=5)return{cls:'casi-rojo',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
-  if(d<=7)return{cls:'naranja-rojo',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
-  if(d<=10)return{cls:'naranja-claro',texto:'Próximo a vencer'+sub,bell:true,bellTxt:'faltan '+d+' días'};
+  var g=grupoCaso(c);
+  if(g==='realizado')return{cls:'verde',texto:'Realizado'+sub,bell:false,bellTxt:''};
+  if(g==='vencido')return{cls:'rojo',texto:'Vencido'+sub,bell:true,bellTxt:(d!==null&&d!==undefined&&d<0)?('vencido hace '+Math.abs(d)+' días'):'marcado como vencido'};
+  if(g==='proximo'){
+    var cls=d===null||d===undefined?'naranja-claro':(d<=5?'casi-rojo':(d<=7?'naranja-rojo':'naranja-claro'));
+    return{cls:cls,texto:'Próximo a vencer'+sub,bell:true,bellTxt:(d!==null&&d!==undefined&&d>=0)?('faltan '+d+' días'):'marcado como próximo a vencer'};
+  }
   return{cls:'amarillo',texto:'Pendiente'+sub,bell:false,bellTxt:''};
 }
 function filaCaso(c){

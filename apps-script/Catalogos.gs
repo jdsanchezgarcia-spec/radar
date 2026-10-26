@@ -33,6 +33,10 @@ function leerCatalogo() {
     if (!u.activo || canonizarRol(u.rol) !== CFG.ROLES.PROFESIONAL) return;
     if (u.nombre && out.profesionales.indexOf(u.nombre) < 0) out.profesionales.push(u.nombre);
   });
+  // Estados básicos siempre disponibles para marcar casos manualmente.
+  ['Pendiente', 'Realizado', 'Próximo a vencer', 'Vencido'].forEach(function (e) {
+    if (out.estadosCaso.indexOf(e) < 0) out.estadosCaso.push(e);
+  });
   return out;
 }
 
