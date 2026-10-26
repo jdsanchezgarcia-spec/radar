@@ -27,6 +27,12 @@ function leerCatalogo() {
     }
     out[c[0]] = lista;
   });
+  // Los profesionales activos del sistema SIEMPRE aparecen para asignar,
+  // aunque su nombre todavía no esté escrito en la hoja Catálogos.
+  listaUsuarios().forEach(function (u) {
+    if (!u.activo || canonizarRol(u.rol) !== CFG.ROLES.PROFESIONAL) return;
+    if (u.nombre && out.profesionales.indexOf(u.nombre) < 0) out.profesionales.push(u.nombre);
+  });
   return out;
 }
 
@@ -102,4 +108,22 @@ function asegurarValidacionesCatalogos() {
       .build();
     hc.getRange(letraColumna(col) + '2:' + letraColumna(col) + '5000').setDataValidation(validacion);
   });
+}
+
+// Agrega un nombre a la columna Profesional de Catálogos (si no está ya).
+function agregarProfesionalACatalogo(nombre) {
+  const n = normalizarTexto(nombre);
+  if (!n) return;
+  asegurarCatalogos();
+  const h = ss().getSheetByName(CFG.HOJAS.CATALOGOS);
+  const col = CATALOGOS_COLUMNAS.findIndex(function (c) { return c[0] === 'profesionales'; }) + 1;
+  if (col < 1) return;
+  const ultima = h.getLastRow();
+  if (ultima > 1) {
+    const vals = h.getRange(2, col, ultima - 1, 1).getValues();
+    for (let i = 0; i < vals.length; i++) {
+      if (normalizarTexto(vals[i][0]) === n) return; // ya está en la hoja
+    }
+  }
+  h.getRange(ultima + 1, col).setValue(n);
 }

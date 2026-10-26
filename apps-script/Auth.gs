@@ -324,5 +324,6 @@ function registroPublico(datos) {
   const hash = hashClave(clave, sal);
   hojaPorNombre(CFG.HOJAS.USUARIOS).appendRow([email, nombre, CFG.ROLES.PROFESIONAL, 'No', new Date(), sal, hash]);
   CacheService.getScriptCache().remove(llave);
+  agregarProfesionalACatalogo(nombre); // queda disponible para asignar al activarse
   return 'Cuenta creada para ' + email + '. El administrador debe activarla en la hoja (Activo = Sí) antes de que puedas entrar.';
 }

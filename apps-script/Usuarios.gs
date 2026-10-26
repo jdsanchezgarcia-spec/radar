@@ -30,6 +30,7 @@ function agregarUsuario(datos, usuario) {
   const sal = clave ? nuevaSal() : '';
   const hash = clave ? hashClave(clave, sal) : '';
   hojaPorNombre(CFG.HOJAS.USUARIOS).appendRow([email, nombre, rol, 'Sí', new Date(), sal, hash]);
+  if (canonizarRol(rol) === CFG.ROLES.PROFESIONAL) agregarProfesionalACatalogo(nombre);
   return 'Usuario ' + email + ' agregado como ' + rol +
     (clave ? '.' : ' (sin contraseña: asígnala con el botón "Clave").');
 }
@@ -49,6 +50,10 @@ function actualizarUsuario(datos, usuario) {
   if (datos.activo !== undefined) campos['Activo'] = datos.activo ? 'Sí' : 'No';
   escribirCampos(CFG.HOJAS.USUARIOS, COL.USUARIOS, reg._fila, campos);
   if (datos.clave) guardarClave(reg, datos.clave);
+  const rolFinal = campos['Rol'] !== undefined ? campos['Rol'] : reg['Rol'];
+  if (canonizarRol(rolFinal) === CFG.ROLES.PROFESIONAL) {
+    agregarProfesionalACatalogo(campos['Nombre'] !== undefined ? campos['Nombre'] : reg['Nombre']);
+  }
   return 'Usuario ' + email + ' actualizado.';
 }
 
