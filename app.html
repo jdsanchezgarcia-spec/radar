@@ -618,6 +618,9 @@ function puedeEditarUI(c){
 
 function abrirModal(html){document.getElementById('modal-cuerpo').innerHTML=html;document.getElementById('modal').classList.add('on');}
 function cerrarModal(){document.getElementById('modal').classList.remove('on');}
+function nombresProfesionales(){
+  return (DATOS.profesionales||[]).map(function(p){return p&&p.nombre?p.nombre:String(p||'');}).filter(function(x){return x;});
+}
 function camp(lb,id,tipo,val,full){
   var inp;
   if(tipo==='textarea')inp='<textarea id="'+id+'">'+esc(val||'')+'</textarea>';
@@ -674,7 +677,7 @@ function modalNuevo(){
   h+=camp('Observación','n-obs','textarea','',true);
   h+=camp('Causa de muerte','n-causa','textarea','',true);
   h+=campSelect('Conclusión UA','n-conc',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL']),'');
-  h+=campSelect('Profesional asignado','n-prof',valoresDe('profesional'),'');
+  h+=campSelect('Profesional asignado','n-prof',nombresProfesionales(),'');
   h+=camp('Intervinientes UA','n-inter','textarea','',true);
   h+=camp('Seguimiento','n-seg','textarea','',true);
   h+=camp('Otros datos','n-otros','textarea','',true);
@@ -755,7 +758,7 @@ function modalSeg(id){
   h+=camp('Observación','s-obs','textarea',c.observacion,true);
   h+=camp('Causa de muerte','s-causa','textarea',c.causaMuerte,true);
   h+=campSelect('Conclusión UA','s-conc',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL']),c.conclusion);
-  h+=campSelect('Profesional asignado','s-prof',valoresDe('profesional'),c.profesional);
+  h+=campSelect('Profesional asignado','s-prof',nombresProfesionales(),c.profesional);
   h+=camp('Intervinientes UA','s-inter','textarea',c.intervinientes,true);
   h+=camp('Seguimiento','s-seg','textarea',c.seguimiento,true);
   h+=camp('Otros datos','s-otros','textarea',c.otrosDatos,true);
@@ -831,7 +834,7 @@ function toggleVisita(id){
 function hoyIso(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function modalVisita(id){
   var c=(DATOS.casos||[]).filter(function(x){return x.id===id;})[0];
-  var prods=(DATOS.profesionales||[]);
+  var prods=nombresProfesionales();
   var h='<h2>Agregar visita · '+esc(id)+'</h2><p class="ayuda">'+esc(c?c.caso:'')+'</p><div class="grid">';
   h+=camp('Fecha','v-fecha','date',hoyIso());
   h+=campSelect('Tipo de visita','v-tipo',DATOS.tiposVisita||[],(DATOS.tiposVisita&&DATOS.tiposVisita[0])||'');
@@ -887,7 +890,7 @@ function subirArchivosVisita(idVisita,files,done){
 }
 function modalAsignar(id){
   var c=(DATOS.casos||[]).filter(function(x){return x.id===id;})[0];
-  var prods=(DATOS.profesionales||[]);
+  var prods=nombresProfesionales();
   var h='<h2>Asignar profesional · '+esc(id)+'</h2><p class="ayuda">'+esc(c?c.caso:'')+'</p><div class="grid">';
   h+=campSelect('Profesional asignado','as-prof',prods,(c&&c.profesional)||'');
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarAsignar(\''+esc(id)+'\')">Asignar</button></div>';
@@ -1198,7 +1201,7 @@ function guardarEvento(){
 }
 function modalNuevaAccion(){
   var evs=(DATOS.eventos||[]);
-  var prods=(DATOS.profesionales||[]).map(function(p){return p&&p.nombre?p.nombre:String(p||'');}).filter(function(x){return x;});
+  var prods=nombresProfesionales();
   var h='<h2>Registrar acción de mejora</h2><p class="ayuda">Los campos con * son obligatorios. El responsable debe estar registrado como profesional para poder subir evidencias desde la web.</p><div class="grid">';
   h+='<div class="camp full"><label>Evento asociado (opcional)</label><select id="ac-ev" onchange="prefInstEvento(this.value)"><option value=""></option>'+evs.map(function(e){return '<option value="'+esc(e.id)+'">'+esc(e.id+' · '+e.institucion)+'</option>';}).join('')+'</select></div>';
   h+=camp('Hallazgo identificado *','ac-hallazgo','textarea','',true);
