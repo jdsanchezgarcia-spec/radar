@@ -197,7 +197,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
   <div class="login-caja">
     <div class="logo-grande"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#1a7fb8" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#1a7fb8" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
     <h2>Radar</h2>
-    <p class="login-sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</p>
+    <p class="login-sub">Seguimiento de unidades de análisis · Villavicencio</p>
     <div id="btn-google"></div>
     <div id="login-msg"></div>
   </div>
@@ -209,7 +209,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
     <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#fff" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
     <div>
       <h1>Radar</h1>
-      <div class="sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</div>
+      <div class="sub">Seguimiento de unidades de análisis · Villavicencio</div>
     </div>
   </div>
   <div class="usuario-bar" id="usuario-bar"></div>
@@ -350,7 +350,7 @@ function pintarUsuario(){
   var acb=document.getElementById('btn-accion-wrap');
   if(acb)acb.style.display=esAdmin()?'':'none';
   var mb=document.getElementById('btn-mis-casos');
-  if(mb)mb.style.display=(SESION&&!esAdmin())?'':'none';
+  if(mb)mb.style.display=SESION?'':'none';
 }
 function irALogin(){
   try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
