@@ -505,6 +505,7 @@ var VISTA='casos';
 function setVista(v){VISTA=v;document.getElementById('tab-casos').classList.toggle('on',v==='casos');document.getElementById('tab-planes').classList.toggle('on',v==='planes');render();}
 function render(){if(VISTA==='planes')renderPlanes();else renderCasos();}
 function hayCriterio(){
+  if(SOLO_MIOS)return true;
   if(FILTRO_KPI)return true;
   if((document.getElementById('buscar').value||'').trim())return true;
   if(document.getElementById('f-prof').value)return true;
