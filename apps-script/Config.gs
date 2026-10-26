@@ -1,7 +1,7 @@
 const CFG = {
-  NOMBRE: 'Radar Materno',
+  NOMBRE: 'Radar',
   ZONA_HORARIA: 'America/Bogota',
-  CARPETA_EVIDENCIAS: 'Radar Materno - Evidencias',
+  CARPETA_EVIDENCIAS: 'Radar - Evidencias',
 
   HOJAS: {
     CASOS: 'Casos',

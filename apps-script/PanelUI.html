@@ -234,7 +234,7 @@
 
 <header>
   <div>
-    <h1>Radar Materno</h1>
+    <h1>Radar</h1>
     <div class="fecha" id="fecha-actualizacion"></div>
   </div>
   <button onclick="cargar()">&#8635; Actualizar</button>
@@ -439,14 +439,14 @@ function llamarServidor(funcion, argumentos, alTerminar) {
 
   if (typeof google === 'undefined' || !google.script || !google.script.run) {
     cargando(false);
-    aviso('Estás viendo una vista previa del editor. Abre la hoja de cálculo y usa el menú "Radar Materno" → "Abrir panel de seguimiento".', 'error');
+    aviso('Estás viendo una vista previa del editor. Abre la hoja de cálculo y usa el menú "Radar" → "Abrir panel de seguimiento".', 'error');
     return;
   }
 
   cargando(true);
   var reloj = setTimeout(function () {
     cargando(false);
-    aviso('El script no respondió en 30 segundos. Suele ser por permisos: ejecuta "Radar Materno" → "Instalar / Reparar sistema", acepta todo y vuelve a abrir el panel.', 'error');
+    aviso('El script no respondió en 30 segundos. Suele ser por permisos: ejecuta "Radar" → "Instalar / Reparar sistema", acepta todo y vuelve a abrir el panel.', 'error');
   }, 30000);
 
   function terminar(resultado, error) {

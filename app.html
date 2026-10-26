@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Radar Materno · Plataforma</title>
+<title>Radar · Plataforma</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -139,10 +139,10 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .modal h2{margin:0 0 4px;color:var(--azul3);font-size:19px;font-weight:800;letter-spacing:-.01em}
 .modal .ayuda{font-size:12.5px;color:var(--gris);margin:0 0 18px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.camp{display:flex;flex-direction:column}
+.camp{display:flex;flex-direction:column;min-width:0}
 .camp.full{grid-column:1/-1}
 .camp label{font-size:11.5px;font-weight:700;color:var(--azul3);margin-bottom:5px;letter-spacing:.01em}
-.camp input,.camp select,.camp textarea{padding:10px 12px;border:1px solid var(--borde2);border-radius:8px;font-size:13.5px;font-family:inherit;background:var(--sup);transition:border var(--tr),box-shadow var(--tr)}
+.camp input,.camp select,.camp textarea{padding:10px 12px;border:1px solid var(--borde2);border-radius:8px;font-size:13.5px;font-family:inherit;background:var(--sup);transition:border var(--tr),box-shadow var(--tr);width:100%;box-sizing:border-box;max-width:100%}
 .camp input[type=file]{padding:9px 10px;border:1px dashed var(--borde2);border-radius:8px;background:var(--sup2);font-size:12.5px}
 .camp textarea{resize:vertical;min-height:60px;line-height:1.5}
 .modal .pie{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--borde)}
@@ -195,7 +195,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 <div id="login" class="login-pantalla">
   <div class="login-caja">
     <div class="logo-grande"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#1a7fb8" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#1a7fb8" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
-    <h2>Radar Materno</h2>
+    <h2>Radar</h2>
     <p class="login-sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</p>
     <div id="btn-google"></div>
     <div id="login-msg"></div>
@@ -207,7 +207,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
   <div class="marca">
     <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#fff" stroke="none"/><path d="M12 12 L19.2 7.2"/></svg></div>
     <div>
-      <h1>Radar Materno</h1>
+      <h1>Radar</h1>
       <div class="sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</div>
     </div>
   </div>
@@ -1046,7 +1046,7 @@ function renderPlanes(){
   var q=(document.getElementById('buscar').value||'').trim().toLowerCase();
   var acc=(DATOS.acciones||[]).slice();
   if(q)acc=acc.filter(function(a){return (a.id+' '+a.institucion+' '+a.responsable+' '+a.accion+' '+a.hallazgo).toLowerCase().indexOf(q)>=0;});
-  if(!acc.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay acciones de mejora registradas'+(q?' que coincidan con la búsqueda':'')+'. Se crean desde la hoja de cálculo (menú Radar Materno → Registrar acción de mejora).</div>';return;}
+  if(!acc.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay acciones de mejora registradas'+(q?' que coincidan con la búsqueda':'')+'. Se crean desde la hoja de cálculo (menú Radar → Registrar acción de mejora).</div>';return;}
   var h='<div class="info-res">'+acc.length+' acción(es) de mejora</div><div class="lista-nombres">';
   acc.forEach(function(a){h+=filaAccion(a);});
   h+='</div>';

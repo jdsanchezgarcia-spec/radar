@@ -155,7 +155,7 @@ function construirCorreoAlertas(alertas) {
 
   return (
     '<div style="font-family:Arial,sans-serif;color:#203864;">' +
-    '<h2 style="background:#0B3C5D;color:#fff;padding:12px;margin:0;">Radar Materno - Alertas de seguimiento</h2>' +
+    '<h2 style="background:#0B3C5D;color:#fff;padding:12px;margin:0;">Radar - Alertas de seguimiento</h2>' +
     '<p>Se encontraron <strong>' + alertas.length + '</strong> acción(es) que requieren atención.</p>' +
     '<table style="border-collapse:collapse;width:100%;font-size:13px;">' +
     '<thead><tr style="background:#1F4E79;color:#fff;">' +
@@ -169,7 +169,7 @@ function construirCorreoAlertas(alertas) {
     '<th style="padding:6px;border:1px solid #ddd;">Detalle</th>' +
     '</tr></thead>' +
     '<tbody>' + filas + '</tbody></table>' +
-    '<p style="color:#7F8C8D;font-size:12px;">Generado automáticamente por Radar Materno - ' + ahoraTexto() + '</p>' +
+    '<p style="color:#7F8C8D;font-size:12px;">Generado automáticamente por Radar - ' + ahoraTexto() + '</p>' +
     '</div>'
   );
 }

@@ -24,7 +24,7 @@ function instalarSistema() {
     (r.sinDefuncion && r.sinDefuncion.length
       ? '\n\nSin fecha de defunción (revisar en la hoja Casos):\n- ' + r.sinDefuncion.join('\n- ')
       : '') +
-    '\n\nUsa el menú "Radar Materno" para:\n' +
+    '\n\nUsa el menú "Radar" para:\n' +
     ' - Abrir el panel de seguimiento\n' +
     ' - Actualizar alertas y tablero\n' +
     ' - Enviar alertas por correo'
@@ -260,7 +260,7 @@ function onOpen() {
     console.log('No se pudieron actualizar alertas/tablero: ' + e.message);
   }
   SpreadsheetApp.getUi()
-    .createMenu('Radar Materno')
+    .createMenu('Radar')
     .addItem('Instalar / Reparar sistema', 'instalarSistema')
     .addItem('Abrir panel de seguimiento', 'abrirPanel')
     .addSeparator()

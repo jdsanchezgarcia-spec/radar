@@ -3,7 +3,7 @@ function listaUsuarios() {
     return {
       email: String(r['Email'] || '').toLowerCase(),
       nombre: normalizarTexto(r['Nombre']),
-      rol: normalizarTexto(r['Rol']),
+      rol: canonizarRol(r['Rol']),
       activo: String(r['Activo']).trim().toUpperCase() !== 'NO',
       tieneClave: !!String(r['Hash'] || '').trim(),
       fila: r._fila

@@ -15,7 +15,7 @@ function ss() {
     return _SS;
   }
   throw new Error(
-    'No se pudo acceder a la hoja de cálculo. Ejecuta "Instalar / Reparar sistema" desde el menú Radar Materno en la hoja.'
+    'No se pudo acceder a la hoja de cálculo. Ejecuta "Instalar / Reparar sistema" desde el menú Radar en la hoja.'
   );
 }
 
@@ -24,7 +24,7 @@ function hojaPorNombre(nombre) {
   if (!h) {
     throw new Error(
       'No se encontró la hoja "' + nombre +
-      '". Ejecuta "Instalar / Reparar sistema" desde el menú Radar Materno.'
+      '". Ejecuta "Instalar / Reparar sistema" desde el menú Radar.'
     );
   }
   return h;

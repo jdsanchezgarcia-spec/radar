@@ -94,7 +94,7 @@ function doGet(e) {
   }
   asegurarInstalacion();
   return HtmlService.createHtmlOutputFromFile('IndexWeb')
-    .setTitle('Radar Materno')
+    .setTitle('Radar')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
@@ -232,7 +232,7 @@ function apiEjecutar(body) {
 
 function abrirPanel() {
   const html = HtmlService.createHtmlOutputFromFile('PanelUI')
-    .setTitle('Radar Materno')
+    .setTitle('Radar')
     .setWidth(470);
   SpreadsheetApp.getUi().showSidebar(html);
 }
