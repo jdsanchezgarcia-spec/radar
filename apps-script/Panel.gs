@@ -7,7 +7,17 @@ function apiLeer(accion, p) {
   const usuario = usuarioDeSesion(sesion);
   if (accion === 'datos' || accion === 'panel') {
     exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
-    return panelDatos(sesion);
+    try {
+      return panelDatos(sesion);
+    } catch (err) {
+      // Si falta alguna hoja del sistema (p. ej. nunca se instaló),
+      // intenta instalar/reparar una vez y vuelve a cargar.
+      if (String((err && err.message) || err).indexOf('No se encontró la hoja') === 0) {
+        asegurarInstalacion();
+        return panelDatos(sesion);
+      }
+      throw err;
+    }
   }
   if (accion === 'appconfig') return { login: 'usuario-clave' };
   if (accion === 'documentacion') {
@@ -98,6 +108,18 @@ function doPost(e) {
   return jsonResp(apiEjecutar(body));
 }
 
+function exigirRolAccion(usuario, idAccion) {
+  if (!usuario) throw new Error('Debes iniciar sesión.');
+  if (canonizarRol(usuario.rol) === CFG.ROLES.ADMIN) return;
+  const reg = buscarAccion(idAccion);
+  if (!reg) throw new Error('No existe la acción "' + idAccion + '".');
+  const responsable = String(reg['Responsable asignado'] || '').trim().toLowerCase();
+  const yo = String(usuario.nombre || '').trim().toLowerCase();
+  if (!responsable || responsable !== yo) {
+    throw new Error('Solo el responsable de la acción o un administrador pueden modificarla.');
+  }
+}
+
 function apiEjecutar(body) {
   const accion = body.accion;
   const datos = body.datos || {};
@@ -106,6 +128,9 @@ function apiEjecutar(body) {
     if (accion === 'login') {
       const r = loginUsuarioClave(Object.assign({}, body, datos));
       return { ok: true, token: r.token, email: r.email, nombre: r.nombre, rol: r.rol };
+    }
+    if (accion === 'registro') {
+      return { ok: true, mensaje: registroPublico(Object.assign({}, body, datos)) };
     }
     if (accion === 'logout') {
       cerrarSesion(body.sesion || datos.sesion || '');
@@ -165,6 +190,29 @@ function apiEjecutar(body) {
     }
     if (accion === 'cambiarClave') {
       return { ok: true, mensaje: cambiarClaveUsuario(datos, usuario) };
+    }
+    if (accion === 'subirEvidenciaAccion') {
+      const idA = body.idAccion || datos.idAccion;
+      exigirRolAccion(usuario, idA);
+      const r = subirEvidencia(idA, body.nombre || datos.nombre, body.mimeType || datos.mimeType, body.base64 || datos.base64);
+      return { ok: true, mensaje: 'Evidencia "' + r.archivo + '" subida. Total: ' + r.total, datos: r };
+    }
+    if (accion === 'sincronizarEvidenciasAccion') {
+      const idA = body.idAccion || datos.idAccion;
+      exigirRolAccion(usuario, idA);
+      const r = sincronizarEvidencias(idA);
+      return { ok: true, mensaje: 'Evidencias sincronizadas: ' + r.total, datos: r };
+    }
+    if (accion === 'cambiarEstadoAccion') {
+      const idA = body.idAccion || datos.idAccion;
+      const nuevo = normalizarTexto(body.estado || datos.estado);
+      const esVerificacion = nuevo === CFG.ESTADOS.VERIFICADA || nuevo === CFG.ESTADOS.RECHAZADA;
+      if (esVerificacion) exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      else exigirRolAccion(usuario, idA);
+      const detalle = datos.detalle || body.detalle || {};
+      if (usuario && !normalizarTexto(detalle.verificador)) detalle.verificador = usuario.nombre;
+      const m = panelCambiarEstado(idA, nuevo, detalle);
+      return { ok: true, mensaje: 'Acción ' + m };
     }
     return { ok: false, mensaje: 'Acción desconocida: ' + accion };
   } catch (err) {

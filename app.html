@@ -69,6 +69,9 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .btn.sec:hover{background:var(--sup2);border-color:var(--gris2)}
 .btn.mal{background:var(--rojo)}.btn.mal:hover{background:#b83a3a}
 .btn.sm{padding:7px 12px;font-size:12px;border-radius:7px}
+.tabs{display:flex;gap:8px;margin:0 0 12px}
+.tab{border:1.5px solid #d5dee6;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--azul2);font-family:inherit}
+.tab.on{background:var(--azul2);color:#fff;border-color:var(--azul2)}
 
 .filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center;padding:12px;background:var(--sup);border:1px solid var(--borde);border-radius:var(--r2);box-shadow:var(--sh1)}
 .sel{padding:9px 11px;border:1px solid var(--borde2);border-radius:7px;font-size:12.5px;background:var(--sup);color:var(--texto);font-family:inherit;cursor:pointer;max-width:100%;transition:border var(--tr),box-shadow var(--tr)}
@@ -215,6 +218,11 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 
 <div class="cont">
   <div class="kpis" id="kpis"></div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-casos" onclick="setVista('casos')">Casos</button>
+    <button class="tab" id="tab-planes" onclick="setVista('planes')">Planes de mejora</button>
+  </div>
 
   <div class="barra">
     <input class="buscar" id="buscar" placeholder="Buscar por nombre, cédula, EAPB, profesional..." oninput="render()">
@@ -476,7 +484,9 @@ function limpiarFiltros(){
   renderKpis();
   render();
 }
-function render(){renderCasos();}
+var VISTA='casos';
+function setVista(v){VISTA=v;document.getElementById('tab-casos').classList.toggle('on',v==='casos');document.getElementById('tab-planes').classList.toggle('on',v==='planes');render();}
+function render(){if(VISTA==='planes')renderPlanes();else renderCasos();}
 function hayCriterio(){
   if(FILTRO_KPI)return true;
   if((document.getElementById('buscar').value||'').trim())return true;
@@ -1017,6 +1027,134 @@ function renderDocs(d){
     h+='<div class="docs-cand" style="margin-top:12px">📁 <a href="'+esc(d.raiz.url)+'" target="_blank" rel="noopener">Ver todas las carpetas (raíz de documentación)</a></div>';
   }
   l.innerHTML=h;
+}
+// ---------------- Vista: Planes de mejora ----------------
+function claseEstadoAccion(est){
+  return {'Pendiente':'amarillo','En ejecución':'azul','Reportada':'naranja','Verificada':'verde','Rechazada':'rojo'}[est]||'gris';
+}
+function esResponsableUI(a){
+  if(esAdmin())return true;
+  return !!(SESION&&SESION.nombre&&a&&String(SESION.nombre).trim().toLowerCase()===String(a.responsable||'').trim().toLowerCase());
+}
+function renderPlanes(){
+  var q=(document.getElementById('buscar').value||'').trim().toLowerCase();
+  var acc=(DATOS.acciones||[]).slice();
+  if(q)acc=acc.filter(function(a){return (a.id+' '+a.institucion+' '+a.responsable+' '+a.accion+' '+a.hallazgo).toLowerCase().indexOf(q)>=0;});
+  if(!acc.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay acciones de mejora registradas'+(q?' que coincidan con la búsqueda':'')+'. Se crean desde la hoja de cálculo (menú Radar Materno → Registrar acción de mejora).</div>';return;}
+  var h='<div class="info-res">'+acc.length+' acción(es) de mejora</div><div class="lista-nombres">';
+  acc.forEach(function(a){h+=filaAccion(a);});
+  h+='</div>';
+  document.getElementById('v-casos').innerHTML=h;
+}
+function filaAccion(a){
+  var e='<div class="caso-item" id="acc-'+esc(a.id)+'">';
+  e+='<div class="caso-cab" onclick="toggleAccion(\''+esc(a.id)+'\')">';
+  e+='<span class="caso-caret" id="acaret-'+esc(a.id)+'">›</span>';
+  e+='<span class="caso-nombre">'+esc(a.accion||a.id)+'</span>';
+  e+='<span class="caso-ets">';
+  e+='<span class="et '+claseEstadoAccion(a.estado)+'">'+esc(a.estado||'Pendiente')+'</span>';
+  if(a.alerta)e+='<span class="et '+claseEt(a.alerta)+'">'+esc(a.alerta)+'</span>';
+  e+='<span class="et azul">'+esc(a.id)+'</span>';
+  e+='</span></div>';
+  e+='<div class="caso-det" id="adet-'+esc(a.id)+'" style="display:none"></div>';
+  e+='</div>';
+  return e;
+}
+function toggleAccion(id){
+  var det=document.getElementById('adet-'+id);
+  var item=document.getElementById('acc-'+id);
+  if(!det)return;
+  if(det.style.display!=='none'){det.style.display='none';item.classList.remove('abierta');}
+  else{
+    if(!det.innerHTML){var a=(DATOS.acciones||[]).filter(function(x){return x.id===id;})[0];if(a)det.innerHTML=tarjetaAccion(a);}
+    det.style.display='';item.classList.add('abierta');
+  }
+}
+function tarjetaAccion(a){
+  var e='<div class="tarjeta '+(a.alerta?claseTarjeta(a.alerta):'')+'">';
+  e+='<div class="etiqs">';
+  e+='<span class="et '+claseEstadoAccion(a.estado)+'">'+esc(a.estado||'Pendiente')+'</span>';
+  if(a.alerta)e+='<span class="et '+claseEt(a.alerta)+'">'+esc(a.alerta)+'</span>';
+  e+='<span class="et azul">'+esc(a.id)+'</span>';
+  e+='<span class="et '+(a.prioridad==='Alta'?'rojo':a.prioridad==='Media'?'amarillo':'gris')+'">'+esc(a.prioridad||'')+'</span>';
+  e+='</div>';
+  e+='<div class="titulo">'+esc(a.accion||a.id)+'</div>';
+  e+=grupo('Responsables',fila('Institución',a.institucion)+fila('Responsable',a.responsable)+fila('Evento',a.evento));
+  e+=grupo('Acción de mejora',fila('Hallazgo',a.hallazgo)+fila('Acción propuesta',a.accion)+fila('Indicador / evidencia esperada',a.indicador));
+  var dias=a.dias===null||a.dias===undefined?'':(a.dias>=0?' (vence en '+a.dias+' d)':' (vencida hace '+Math.abs(a.dias)+' d)');
+  var ev=(a.evidencias!=null?a.evidencias:0);
+  e+=grupo('Seguimiento',fila('Fecha límite',(a.fechaLimite||'')+dias)+fila('Avance',(a.avance!==''&&a.avance!=null)?a.avance+'%':'')+'<div class="fila"><span class="lb">Evidencias</span><span class="vl">'+ev+(a.carpeta?' · <a href="'+esc(a.carpeta)+'" target="_blank" rel="noopener">abrir carpeta</a>':'')+'</span></div>'+fila('Fecha reporte',a.fechaReporte)+fila('Verificador',a.verificador)+fila('Observaciones verificación',a.observaciones));
+  if(a.detalleAlerta)e+='<div class="detalle">'+esc(a.detalleAlerta)+'</div>';
+  e+='<div class="accs">';
+  if(esResponsableUI(a)){
+    e+='<input type="file" id="file-'+esc(a.id)+'" style="display:none" onchange="subirEvidenciaAccion(this,\''+esc(a.id)+'\')">';
+    e+='<button class="btn sec sm" onclick="document.getElementById(\'file-'+esc(a.id)+'\').click()">+ Subir evidencia</button>';
+    e+='<button class="btn sec sm" onclick="sincronizarAccion(\''+esc(a.id)+'\')">Sincronizar</button>';
+  }
+  e+=botonesTransicion(a);
+  e+='</div></div>';
+  return e;
+}
+function botonesTransicion(a){
+  var est=a.estado||'Pendiente',h='';
+  if(esResponsableUI(a)){
+    if(est==='Pendiente')h+='<button class="btn sm" onclick="transicionAccion(\''+esc(a.id)+'\',\'En ejecución\')">Iniciar ejecución</button>';
+    if(est==='En ejecución')h+='<button class="btn sm" onclick="transicionAccion(\''+esc(a.id)+'\',\'Reportada\')">Reportar cumplida</button>';
+    if(est==='Rechazada')h+='<button class="btn sm" onclick="transicionAccion(\''+esc(a.id)+'\',\'En ejecución\')">Reanudar</button>';
+  }
+  if(esAdmin()&&est==='Reportada'){
+    h+='<button class="btn sm" onclick="modalVerificar(\''+esc(a.id)+'\',true)">Verificar</button>';
+    h+='<button class="btn mal sm" onclick="modalVerificar(\''+esc(a.id)+'\',false)">Rechazar</button>';
+  }
+  return h;
+}
+function subirEvidenciaAccion(input,idAccion){
+  var f=input.files&&input.files[0];
+  if(!f)return;
+  toast('Subiendo evidencia…');
+  var fr=new FileReader();
+  fr.onload=function(ev){
+    var base64=String(ev.target.result).split(',')[1]||'';
+    apiPost({accion:'subirEvidenciaAccion',idAccion:idAccion,nombre:f.name,mimeType:f.type||'application/octet-stream',base64:base64})
+      .then(function(r){if(r.ok){toast(r.mensaje||'Evidencia subida');cargar();}else toast(r.mensaje||'No se pudo subir la evidencia',true);})
+      .catch(function(e){toast(e.message,true);});
+  };
+  fr.readAsDataURL(f);
+  input.value='';
+}
+function sincronizarAccion(idAccion){
+  toast('Sincronizando evidencias…');
+  apiPost({accion:'sincronizarEvidenciasAccion',idAccion:idAccion})
+    .then(function(r){if(r.ok){toast(r.mensaje);cargar();}else toast(r.mensaje,true);})
+    .catch(function(e){toast(e.message,true);});
+}
+function transicionAccion(idAccion,estado){
+  toast('Actualizando estado…');
+  apiPost({accion:'cambiarEstadoAccion',idAccion:idAccion,estado:estado})
+    .then(function(r){if(r.ok){toast(r.mensaje);cargar();}else toast(r.mensaje,true);})
+    .catch(function(e){toast(e.message,true);});
+}
+function modalVerificar(idAccion,aprobar){
+  var a=(DATOS.acciones||[]).filter(function(x){return x.id===idAccion;})[0];
+  if(!a)return;
+  var h='<h2>'+(aprobar?'Verificar':'Rechazar')+' acción '+esc(idAccion)+'</h2>';
+  h+='<div class="camp full"><label>Verificador</label><input id="m-verificador" value="'+esc(SESION.nombre||'')+'"></div>';
+  h+='<div class="camp full"><label>¿Responde al hallazgo?</label><select id="m-responde"><option value="Sí">Sí</option><option value="No">No</option></select></div>';
+  if(aprobar)h+='<div class="camp full"><label>¿Efectiva?</label><select id="m-efectiva"><option value="Sí">Sí</option><option value="No">No</option></select></div>';
+  h+='<div class="camp full"><label>Observaciones'+(aprobar?'':' (obligatorias)')+'</label><textarea id="m-obs"></textarea></div>';
+  h+='<div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarVerificacion(\''+esc(idAccion)+'\','+(aprobar?'true':'false')+')">'+(aprobar?'Verificar acción':'Rechazar acción')+'</button></div>';
+  abrirModal(h);
+}
+function guardarVerificacion(idAccion,aprobar){
+  var detalle={
+    verificador:document.getElementById('m-verificador').value,
+    responde:document.getElementById('m-responde').value,
+    observaciones:document.getElementById('m-obs').value
+  };
+  if(aprobar)detalle.efectiva=document.getElementById('m-efectiva').value;
+  apiPost({accion:'cambiarEstadoAccion',idAccion:idAccion,estado:aprobar?'Verificada':'Rechazada',detalle:detalle})
+    .then(function(r){if(r.ok){toast(r.mensaje);cerrarModal();cargar();}else toast(r.mensaje,true);})
+    .catch(function(e){toast(e.message,true);});
 }
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)cerrarModal();});
 init();
