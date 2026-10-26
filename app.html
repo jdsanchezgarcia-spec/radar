@@ -1245,7 +1245,17 @@ function guardarAccion(){
     else toast((r&&r.mensaje)||'No se pudo registrar la acción.',true);
   }).catch(function(e){toast(e.message,true);});
 }
-document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)cerrarModal();});
+document.getElementById('modal').addEventListener('click',function(e){
+  if(e.target!==this)return;
+  var campos=this.querySelectorAll('input,textarea,select'),hayDatos=false;
+  for(var i=0;i<campos.length;i++){
+    var el=campos[i];
+    if(el.type==='file'||el.type==='date')continue;
+    if((el.value||'').trim()){hayDatos=true;break;}
+  }
+  if(hayDatos&&!window.confirm('¿Cerrar sin guardar? Se perderá lo escrito.'))return;
+  cerrarModal();
+});
 init();
 </script>
 </body>
