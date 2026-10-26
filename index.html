@@ -125,9 +125,9 @@ document.getElementById('form').addEventListener('submit', function (e) {
       btn.textContent = modoRegistro ? 'Crear cuenta' : 'Iniciar sesión';
       if (r && r.ok) {
         if (modoRegistro) {
-          msg(r.mensaje || 'Cuenta creada. El administrador debe activarla.');
           setModo(false);
           document.getElementById('clave').value = '';
+          msg(r.mensaje || 'Cuenta creada. El administrador debe activarla.');
         } else {
           msg('¡Bienvenido ' + (r.nombre || '') + '! Entrando…');
           window.location.href = 'app.html?ses=' + encodeURIComponent(r.token);
