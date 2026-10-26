@@ -104,7 +104,7 @@ function apiEjecutar(body) {
   const usuario = usuarioDeSesion(body.sesion || datos.sesion || '');
   try {
     if (accion === 'login') {
-      const r = loginUsuarioClave(datos);
+      const r = loginUsuarioClave(Object.assign({}, body, datos));
       return { ok: true, token: r.token, email: r.email, nombre: r.nombre, rol: r.rol };
     }
     if (accion === 'logout') {
