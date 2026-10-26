@@ -305,13 +305,21 @@ function cargar(){
       document.getElementById('login').style.display='flex';
       document.getElementById('app').style.display='none';
       renderBotonLogin();
+      var razon=DATOS&&(DATOS.error||DATOS.mensaje);
+      var lm=document.getElementById('login-msg');
+      if(lm)lm.textContent=razon?('No se pudo entrar: '+razon):'';
       return;
     }
     pintarUsuario();
     poblarFiltros();
     renderKpis();render();
   }).catch(function(e){
-    document.getElementById('v-casos').innerHTML='<div class="vacio">Error cargando: '+esc(e.message)+'</div>';
+    SESION=null;try{sessionStorage.removeItem('radar_sesion');}catch(e2){}}
+    document.getElementById('app').style.display='none';
+    document.getElementById('login').style.display='flex';
+    renderBotonLogin();
+    var lm=document.getElementById('login-msg');
+    if(lm)lm.textContent='Error de conexión con el servidor: '+e.message;
   });
 }
 function pintarUsuario(){
