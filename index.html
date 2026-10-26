@@ -22,6 +22,10 @@
     font-size:15px;font-weight:600;cursor:pointer;transition:background .15s}
   button.ingresar:hover{background:#0b3c5d}
   button.ingresar:disabled{background:#9dc2da;cursor:wait}
+  .registro{display:none}
+  .registro.visible{display:block}
+  button.vinculo{background:none;border:0;color:#1a7fb8;font-size:13px;cursor:pointer;margin-top:16px;text-decoration:underline;font-family:inherit}
+  button.vinculo:hover{color:#0b3c5d}
   #msg{margin-top:16px;font-size:13px;color:#c0392b;min-height:18px;line-height:1.45}
   .pie{margin-top:22px;font-size:11.5px;color:#95a5b5;line-height:1.5}
   .cargando{color:#6b8299;font-size:13.5px}
@@ -34,6 +38,11 @@
   <p class="sub">Seguimiento de unidades de análisis materno-perinales · Villavicencio</p>
 
   <form id="form" autocomplete="on">
+    <div class="campo registro" id="campoNombre">
+      <label for="nombre">Nombre completo</label>
+      <input id="nombre" type="text" placeholder="Tu nombre (así aparecerá en los casos)"
+             autocomplete="name" autocapitalize="words" spellcheck="false">
+    </div>
     <div class="campo">
       <label for="usuario">Usuario</label>
       <input id="usuario" name="username" type="text" placeholder="Correo o nombre de usuario"
@@ -44,8 +53,13 @@
       <input id="clave" name="password" type="password" placeholder="••••••••"
              autocomplete="current-password" required>
     </div>
+    <div class="campo registro" id="campoConfirmar">
+      <label for="confirmar">Confirmar contraseña</label>
+      <input id="confirmar" type="password" placeholder="••••••••" autocomplete="new-password">
+    </div>
     <button class="ingresar" id="btn" type="submit">Iniciar sesión</button>
   </form>
+  <button class="vinculo" id="alternar" type="button">¿No tienes cuenta? Regístrate</button>
 
   <div id="msg" role="alert"></div>
   <p class="pie">Acceso reservado a los usuarios registrados por el administrador.</p>
@@ -60,6 +74,22 @@ function msg(t, err) {
   m.style.color = err ? '#c0392b' : '#189a5e';
 }
 
+var modoRegistro = false;
+
+function setModo(registro) {
+  modoRegistro = registro;
+  document.getElementById('campoNombre').classList.toggle('visible', registro);
+  document.getElementById('campoConfirmar').classList.toggle('visible', registro);
+  document.getElementById('btn').textContent = registro ? 'Crear cuenta' : 'Iniciar sesión';
+  document.getElementById('alternar').textContent =
+    registro ? 'Ya tengo cuenta · Iniciar sesión' : '¿No tienes cuenta? Regístrate';
+  msg('');
+}
+
+document.getElementById('alternar').addEventListener('click', function () {
+  setModo(!modoRegistro);
+});
+
 document.getElementById('form').addEventListener('submit', function (e) {
   e.preventDefault();
   var usuario = document.getElementById('usuario').value.trim();
@@ -68,6 +98,18 @@ document.getElementById('form').addEventListener('submit', function (e) {
 
   if (!usuario || !clave) { msg('Escribe tu usuario y tu contraseña.', true); return; }
 
+  var payload;
+  if (modoRegistro) {
+    var nombre = document.getElementById('nombre').value.trim();
+    var confirmar = document.getElementById('confirmar').value;
+    if (!nombre) { msg('Escribe tu nombre completo.', true); return; }
+    if (clave.length < 6) { msg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+    if (clave !== confirmar) { msg('Las contraseñas no coinciden.', true); return; }
+    payload = { accion: 'registro', datos: { nombre: nombre, email: usuario, clave: clave } };
+  } else {
+    payload = { accion: 'login', usuario: usuario, clave: clave };
+  }
+
   btn.disabled = true;
   btn.textContent = 'Verificando…';
   msg('');
@@ -75,23 +117,29 @@ document.getElementById('form').addEventListener('submit', function (e) {
   fetch(APP_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ accion: 'login', usuario: usuario, clave: clave })
+    body: JSON.stringify(payload)
   })
     .then(function (r) { return r.json(); })
     .then(function (r) {
       btn.disabled = false;
-      btn.textContent = 'Iniciar sesión';
+      btn.textContent = modoRegistro ? 'Crear cuenta' : 'Iniciar sesión';
       if (r && r.ok) {
-        msg('¡Bienvenido ' + (r.nombre || '') + '! Entrando…');
-        window.location.href = 'app.html?ses=' + encodeURIComponent(r.token);
+        if (modoRegistro) {
+          msg(r.mensaje || 'Cuenta creada. El administrador debe activarla.');
+          setModo(false);
+          document.getElementById('clave').value = '';
+        } else {
+          msg('¡Bienvenido ' + (r.nombre || '') + '! Entrando…');
+          window.location.href = 'app.html?ses=' + encodeURIComponent(r.token);
+        }
       } else {
         document.getElementById('clave').value = '';
-        msg((r && r.mensaje) || 'No se pudo iniciar sesión.', true);
+        msg((r && r.mensaje) || 'No se pudo completar la solicitud.', true);
       }
     })
     .catch(function (e) {
       btn.disabled = false;
-      btn.textContent = 'Iniciar sesión';
+      btn.textContent = modoRegistro ? 'Crear cuenta' : 'Iniciar sesión';
       msg('Error de conexión: ' + (e.message || String(e)), true);
     });
 });

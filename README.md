@@ -49,19 +49,24 @@ git push -u origin main
 
 ---
 
-## Pasos en Google (solo la primera vez)
+## Usuarios (dos formas)
 
-1. Abrir el editor de Apps Script y ejecutar **una sola vez**
-   desde el selector de funciones:
+**A. Registro desde la página (recomendado):**
+1. En la página de acceso: **¿No tienes cuenta? Regístrate** → Nombre, correo y contraseña.
+2. La cuenta queda **inactiva** (Activo = No). El administrador la activa en la
+   hoja **Usuarios** poniendo `Sí` en **Activo** y, si aplica, `Admin` en **Rol**.
+3. Con eso el usuario ya puede entrar.
 
-   ```
-   asignarClaveInicial('tu-correo@unillanos.edu.co', 'TuClave123')
-   ```
+**B. Creación directa en la hoja (con disparador):**
+1. Ejecutar **una sola vez** en el editor de Apps Script la función
+   **`instalarDisparadorUsuarios`** (desde la hoja: *Extensiones → Apps Script*).
+2. En la hoja **Usuarios** escribir: **Email**, **Nombre**, **Rol**
+   (`Admin` o `Profesional`) y la contraseña en la columna **`Clave`**
+   (el script la cifra en `Sal` + `Hash` y borra lo escrito en claro).
+   Volver a escribir en `Clave` equivale a restablecer la contraseña.
 
-   Eso crea la contraseña del **primer administrador**.
-2. Entrar a la página con ese usuario y contraseña.
-3. Desde el panel: **Usuarios → + Agregar usuario** (ahí se define la
-   contraseña de cada profesional) o **Usuarios → Clave** para restablecerla.
+Después, desde el panel: **Usuarios → + Agregar usuario** o
+**Usuarios → Clave** para restablecerla.
 
 ---
 
