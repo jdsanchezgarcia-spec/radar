@@ -183,6 +183,9 @@ function apiEjecutar(body) {
     if (accion === 'actualizarSeguimiento') {
       const idSeg = normalizarTexto(datos.id);
       exigirPermisoSeguimiento(usuario, idSeg, null);
+      // Un profesional edita sus compromisos pero no puede reasignarlos:
+      // el campo "Profesional" queda siempre como el suyo (solo Admin reasigna).
+      if (canonizarRol(usuario.rol) !== CFG.ROLES.ADMIN) datos.profesional = usuario.nombre;
       const rid = editarSeguimiento(datos);
       return { ok: true, id: rid, mensaje: 'Seguimiento ' + rid + ' actualizado.' };
     }

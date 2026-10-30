@@ -620,11 +620,32 @@ function etEstadoSeg(est){
   var cls=est==='CUMPLE'?'verde':est==='PARCIAL'?'amarillo':est==='NO CUMPLE'?'rojo':'gris';
   return '<span class="et '+cls+'">'+esc(est||'Sin estado')+'</span>';
 }
+// Comparación tolerante de nombres ("LUCÍA MORA" ≈ "LUCIA MORA").
+function normNombreSeg(t){
+  t=String(t||'');
+  t=t.normalize?t.normalize('NFD').replace(/[\u0300-\u036f]/g,''):t;
+  return t.trim().toLowerCase();
+}
 function puedeEditarSegUI(s){
   if(esVisita())return false;
   if(esAdmin())return true;
-  // Profesional: solo sus compromisos (el backend vuelve a validar).
-  return !!(SESION&&SESION.nombre&&s&&String(s.profesional||'').trim().toLowerCase()===String(SESION.nombre).trim().toLowerCase());
+  if(!(SESION&&SESION.nombre&&s))return false;
+  var yo=normNombreSeg(SESION.nombre);
+  // Regla principal: compromisos asignados a mí (el backend vuelve a validar).
+  if(s.profesional&&normNombreSeg(s.profesional)===yo)return true;
+  // Respaldo: si el seguimiento no trae profesional propio, manda el caso.
+  if(!String(s.profesional||'').trim()&&s.idCaso){
+    var c=(DATOS.casos||[]).filter(function(x){return x.id===s.idCaso;})[0];
+    if(c&&c.profesional&&normNombreSeg(c.profesional)===yo)return true;
+  }
+  return false;
+}
+// Campo "Profesional responsable": el Admin elige; el Profesional solo ve el
+// suyo (el backend además lo fuerza, así que no puede reasignar).
+function campoProfesionalSeg(val){
+  if(esAdmin())return campSelect('Profesional responsable','sg-prof',nombresProfesionales(),val||'');
+  return '<div class="camp"><label>Profesional responsable</label>'+
+    '<input id="sg-prof" value="'+esc(String((SESION&&SESION.nombre)||val||''))+'" disabled></div>';
 }
 function filtroSeg(s){
   if(FILTRO_KPI==='seg-cumple'&&s.estado!=='CUMPLE')return false;
@@ -756,7 +777,7 @@ function modalNuevoSeguimiento(){
   h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],'PARCIAL');
   h+=camp('PORCENTAJE (0-100)','sg-porc','number');
   h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea','',true);
-  h+=campSelect('Profesional responsable','sg-prof',nombresProfesionales(),(SESION&&SESION.nombre)||'');
+  h+=campoProfesionalSeg((SESION&&SESION.nombre)||'');
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarNuevoSeguimiento()">Guardar seguimiento</button></div>';
   abrirModal(h);
 }
@@ -791,7 +812,7 @@ function modalEditarSeguimiento(id){
   h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],s.estado||'PARCIAL');
   h+=camp('PORCENTAJE (0-100)','sg-porc','number',s.porcentaje);
   h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea',s.observacion,true);
-  h+=campSelect('Profesional responsable','sg-prof',nombresProfesionales(),s.profesional||'');
+  h+=campoProfesionalSeg(s.profesional||'');
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSeguimiento(\''+esc(id)+'\')">Guardar</button></div>';
   abrirModal(h);
 }
@@ -857,7 +878,7 @@ function modalNuevoSeguimientoPara(idCaso){
   if(!c)return;
   var n=document.getElementById('sg-nombre');if(n&&!n.value)n.value=c.caso||'';
   var i=document.getElementById('sg-ident');if(i&&!i.value)i.value=c.cc||'';
-  var p=document.getElementById('sg-prof');if(p&&!p.value)p.value=c.profesional||'';
+  var p=document.getElementById('sg-prof');if(p&&!p.value&&!p.disabled)p.value=c.profesional||'';
 }
 function verSeguimientosDeCaso(idCaso){
   setVista('seguimientos');

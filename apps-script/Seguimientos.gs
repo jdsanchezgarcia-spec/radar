@@ -373,37 +373,57 @@ function kpiSeguimientos(lista) {
 // Escritura (alta / edición / borrado)
 // ---------------------------------------------------------------------------
 
+// Comparación tolerante de nombres propios ("LUCÍA MORA" ≈ "LUCIA MORA").
+function mismoNombreSeguimiento(a, b) {
+  const x = quitarAcentos(String(a || '')).trim().toLowerCase();
+  const y = quitarAcentos(String(b || '')).trim().toLowerCase();
+  return !!x && x === y;
+}
+
+// Regla de permisos del módulo:
+//   · Admin: todo.
+//   · Profesional: ve TODOS los seguimientos, pero solo crea/edita/elimina
+//     los que le están asignados (campo "Profesional" del propio seguimiento;
+//     si ese campo está vacío, manda el "PROFESIONAL ASIGNADO" del caso).
+//   · Visita: solo lectura (bloqueado antes de llegar aquí).
 function exigirPermisoSeguimiento(usuario, idSeguimiento, datos) {
   if (!usuario) throw new Error('Debes iniciar sesión.');
+  datos = datos || {};
   const rol = canonizarRol(usuario.rol);
   if (rol === CFG.ROLES.ADMIN) return;
   if (rol !== CFG.ROLES.PROFESIONAL) {
     throw new Error('Tu rol no puede modificar seguimientos.');
   }
 
-  const indice = indiceCasosSeguimiento();
-  let idCaso = '';
-  if (idSeguimiento) {
-    const existente = buscarSeguimiento(idSeguimiento);
-    if (!existente) throw new Error('No existe el seguimiento "' + idSeguimiento + '".');
-    idCaso = existente.idCaso;
-  } else if (datos) {
-    idCaso = vincularSeguimiento(
+  // Alta: el profesional registra el compromiso SIEMPRE a su nombre
+  // (no puede dar de alta compromisos a nombre de otro).
+  if (!idSeguimiento) {
+    const idCaso = vincularSeguimiento(
       datos.identificacion || datos['N° IDENTIFICACIÓN'],
-      datos.nombre || datos.NOMBRE,
-      indice
+      normalizarTexto(datos.nombre || datos.NOMBRE),
+      indiceCasosSeguimiento()
     );
+    if (!idCaso) {
+      throw new Error('El compromiso no se pudo vincular a ningún caso. ' +
+        'Solo un administrador puede crear seguimientos sin caso vinculado.');
+    }
+    datos.profesional = usuario.nombre;
+    return;
   }
 
-  if (!idCaso) {
-    throw new Error('Solo un administrador puede modificar seguimientos que no tienen caso vinculado.');
+  const existente = buscarSeguimiento(idSeguimiento);
+  if (!existente) throw new Error('No existe el seguimiento "' + idSeguimiento + '".');
+
+  // Regla principal: el campo "Profesional" del propio seguimiento.
+  if (mismoNombreSeguimiento(existente.profesional, usuario.nombre)) return;
+
+  // Respaldo: si el seguimiento no trae profesional asignado, manda el caso.
+  if (!normalizarTexto(existente.profesional) && existente.idCaso) {
+    const caso = indiceCasosSeguimiento().porId[existente.idCaso];
+    if (caso && mismoNombreSeguimiento(caso.profesional, usuario.nombre)) return;
   }
-  const caso = indice.porId[idCaso];
-  const yo = String(usuario.nombre || '').trim().toLowerCase();
-  const responsable = caso ? String(caso.profesional).trim().toLowerCase() : '';
-  if (!responsable || responsable !== yo) {
-    throw new Error('Solo puedes modificar los seguimientos de tus casos asignados.');
-  }
+
+  throw new Error('Solo puedes editar los seguimientos asignados a ti.');
 }
 
 function buscarSeguimiento(id) {
