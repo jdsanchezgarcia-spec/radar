@@ -13,7 +13,9 @@ const CFG = {
     CONFIG: 'Config',
     USUARIOS: 'Usuarios',
     VISITAS: 'Visitas',
-    CATALOGOS: 'Catalogos'
+    CATALOGOS: 'Catalogos',
+    SEGUIMIENTOS: 'Seguimientos',
+    IMPORTAR: 'Importar'
   },
 
   ROLES: {
@@ -33,6 +35,11 @@ const CFG = {
   },
 
   ESTADOS_CASO: ['Pendiente', 'En proceso', 'Gestionado', 'Cerrado'],
+
+  // Estados de un COMPROMISO de seguimiento (hoja Seguimientos).
+  // Vienen del Excel "Seguimiento_UDA_Completo": CUMPLE / PARCIAL / NO CUMPLE.
+  ESTADOS_SEGUIMIENTO: ['CUMPLE', 'PARCIAL', 'NO CUMPLE'],
+  PORCENTAJE_SEGUIMIENTO_MAX: 100,
 
   PRIORIDADES: ['Alta', 'Media', 'Baja'],
   CLASIFICACIONES: ['Materno', 'Perinatal'],
@@ -195,6 +202,56 @@ const COL = {
     'Resultado',
     'Carpeta',
     'N° archivos'
+  ],
+
+  // Hoja Seguimientos: una fila = UN COMPROMISO derivado de una UDA.
+  // Las columnas 3 a 19 conservan EXACTAMENTE los encabezados del Excel
+  // "Seguimiento_UDA_Completo" para poder pegar/importar sin mapear a mano.
+  SEGUIMIENTOS: [
+    'ID_Seguimiento',
+    'ID_Caso',
+    'N°',
+    'NOMBRE',
+    'TIPO DE ID',
+    'N° IDENTIFICACIÓN',
+    'EVENTO',
+    'FECHA DE UDA',
+    'EAPB RESPONSABLE',
+    'IPS RESPONSABLE',
+    'FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS',
+    'COMPROMISO',
+    'Responsable del compromiso',
+    'Fecha de cumplimiento',
+    'Responsable del seguimiento al compromiso',
+    'fecha de seguimiento',
+    'OBSERVACIÓN DE SEGUIMIENTO',
+    'ESTADO',
+    'PORCENTAJE',
+    'Profesional',
+    'Vínculo',
+    'Última actualización'
+  ],
+
+  // Encabezados esperados en la hoja Importar (se copian del Excel).
+  // Se identifican por nombre, tolerando mayúsculas/acentos.
+  IMPORTAR_EXCEL: [
+    'N°',
+    'NOMBRE',
+    'TIPO DE ID',
+    'N° IDENTIFICACIÓN',
+    'EVENTO',
+    'FECHA DE UDA',
+    'EAPB RESPONSABLE',
+    'IPS RESPONSABLE',
+    'FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS',
+    'COMPROMISO',
+    'Responsable del compromiso',
+    'Fecha de cumplimiento',
+    'Responsable del seguimiento al compromiso',
+    'fecha de seguimiento',
+    'OBSERVACIÓN DE SEGUIMIENTO',
+    'ESTADO',
+    'PORCENTAJE'
   ],
 
   IPS_PAIS: [

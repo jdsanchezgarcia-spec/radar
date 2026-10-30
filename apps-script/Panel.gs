@@ -66,6 +66,7 @@ function asegurarHojasNuevas() {
   crearHoja(CFG.HOJAS.USUARIOS, COL.USUARIOS, [240, 180, 110, 80, 130, 140, 420]);
   crearHoja(CFG.HOJAS.VISITAS, COL.VISITAS, [95, 90, 100, 120, 160, 300, 260, 240, 160, 150, 90]);
   asegurarCatalogos();
+  asegurarHojasSeguimiento();
   const hu = hojaPorNombre(CFG.HOJAS.USUARIOS);
   if (hu.getLastRow() < 2) {
     let email = '';
@@ -168,6 +169,44 @@ function apiEjecutar(body) {
       generarHojaAlertas();
       construirTablero();
       return { ok: true, id: rid, mensaje: 'Caso ' + rid + ' actualizado.' };
+    }
+    // --------------------------------------------------------------------------
+    // SEGUIMIENTOS (compromisos de UDA, hoja propia "Seguimientos")
+    // Ojo: la acción de más abajo "editarSeguimiento" es de CASOS (vieja).
+    // --------------------------------------------------------------------------
+    if (accion === 'nuevoSeguimiento') {
+      // Admin siempre; Profesional solo si el compromiso queda en su caso.
+      exigirPermisoSeguimiento(usuario, null, datos);
+      const id = registrarSeguimiento(datos);
+      return { ok: true, id: id, mensaje: 'Seguimiento ' + id + ' registrado.' };
+    }
+    if (accion === 'actualizarSeguimiento') {
+      const idSeg = normalizarTexto(datos.id);
+      exigirPermisoSeguimiento(usuario, idSeg, null);
+      const rid = editarSeguimiento(datos);
+      return { ok: true, id: rid, mensaje: 'Seguimiento ' + rid + ' actualizado.' };
+    }
+    if (accion === 'eliminarSeguimiento') {
+      const idSeg = normalizarTexto(body.id || datos.id);
+      exigirPermisoSeguimiento(usuario, idSeg, null);
+      const rid = eliminarSeguimiento(idSeg);
+      return { ok: true, id: rid, mensaje: 'Seguimiento ' + rid + ' eliminado.' };
+    }
+    if (accion === 'importarSeguimientos') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const r = importarSeguimientos(normalizarTexto(datos.profesional));
+      return {
+        ok: true,
+        mensaje: 'Importación finalizada. Agregados: ' + r.agregados +
+          ' · Duplicados omitidos: ' + r.duplicados +
+          ' · Sin vincular: ' + r.sinVincular,
+        datos: r
+      };
+    }
+    if (accion === 'recalcularVinculosSeguimiento') {
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const r = marcarVinculosSeguimiento();
+      return { ok: true, mensaje: 'Vínculos recalculados en ' + r.filas + ' fila(s). Sin vincular: ' + r.sinVincular, datos: r };
     }
     if (accion === 'eliminarCaso') {
       exigirRol(usuario, [CFG.ROLES.ADMIN]);
@@ -304,15 +343,21 @@ function panelDatos(sesion) {
   // la edición se restringe por rol en cada acción.
   const casos = listaCasos();
 
+  // Apartado de SEGUIMIENTOS (una fila = un compromiso de UDA del Excel).
+  const seguimientos = listaSeguimientos();
+
   return {
     kpi: kpi,
     acciones: lista,
     eventos: eventos,
     casos: casos,
     kpiCasos: kpiDesdeLista(casos),
+    seguimientos: seguimientos,
+    kpiSeguimientos: kpiSeguimientos(seguimientos),
     semanasVencimiento: semanasVencimiento(),
     estados: [CFG.ESTADOS.PENDIENTE, CFG.ESTADOS.EJECUCION, CFG.ESTADOS.REPORTADA, CFG.ESTADOS.VERIFICADA, CFG.ESTADOS.RECHAZADA],
     estadosCaso: CFG.ESTADOS_CASO,
+    estadosSeguimiento: CFG.ESTADOS_SEGUIMIENTO,
     ipsPais: COL.IPS_PAIS,
     catalogos: leerCatalogo(),
     tiposVisita: CFG.TIPOS_VISITA,

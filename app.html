@@ -223,17 +223,20 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
   <div class="tabs">
     <button class="tab on" id="tab-casos" onclick="setVista('casos')">Casos</button>
     <button class="tab" id="tab-planes" onclick="setVista('planes')">Planes de mejora</button>
+    <button class="tab" id="tab-seguimientos" onclick="setVista('seguimientos')">Seguimientos</button>
   </div>
 
   <div class="barra">
     <input class="buscar" id="buscar" placeholder="Buscar por nombre, cédula, EAPB, profesional..." oninput="render()">
     <button class="btn" onclick="render()">Buscar</button>
     <span id="btn-nuevo-wrap"><button class="btn sec" onclick="modalNuevo()">+ Nuevo caso</button></span>
+    <span id="btn-nuevo-seg-wrap" style="display:none"><button class="btn sec" onclick="modalNuevoSeguimiento()">+ Nuevo seguimiento</button></span>
+    <span id="btn-importar-seg-wrap" style="display:none"><button class="btn sec" onclick="importarSeguimientosUI()">⇪ Importar de la hoja</button></span>
     <span id="btn-evento-wrap" style="display:none"><button class="btn sec" onclick="modalNuevoEvento()">+ Nuevo evento</button></span>
     <span id="btn-accion-wrap" style="display:none"><button class="btn sec" onclick="modalNuevaAccion()">+ Nueva acción</button></span>
   </div>
 
-  <div class="filtros">
+  <div class="filtros" id="filtros-casos">
     <select class="sel" id="f-periodo" onchange="render()">
       <option value="1" selected>Último mes</option>
       <option value="3">Últimos 3 meses</option>
@@ -258,6 +261,23 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
     <button class="btn sec sm" onclick="limpiarFiltros()">Limpiar filtros</button>
   </div>
 
+  <div class="filtros" id="filtros-seg" style="display:none">
+    <select class="sel" id="f-sg-prof" onchange="render()"><option value="">Profesional (todos)</option></select>
+    <select class="sel" id="f-sg-estado" onchange="render()">
+      <option value="">Estado (todos)</option>
+      <option value="CUMPLE">Cumple</option>
+      <option value="PARCIAL">Parcial</option>
+      <option value="NO CUMPLE">No cumple</option>
+      <option value="SIN VINCULAR">Sin vincular a un caso</option>
+    </select>
+    <select class="sel" id="f-sg-orden" onchange="render()">
+      <option value="alerta" selected>Por alerta</option>
+      <option value="cumplimiento">Por fecha de cumplimiento</option>
+      <option value="nombre">Por nombre (A-Z)</option>
+    </select>
+    <button class="btn sec sm" onclick="limpiarFiltrosSeg()">Limpiar filtros</button>
+  </div>
+
   <div id="v-casos"><div class="cargando">Cargando datos...</div></div>
 </div>
 
@@ -270,7 +290,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 <script>
 var API = 'https://script.google.com/macros/s/AKfycbx6oAE7tN0WDvDHeF_wtaF6knIiZhUqb1ciEuVDrFp7wuCYTlpwQULLP8R6xQ1fSUDY/exec';
 var LOGIN_PAGE = 'index.html';
-var DATOS = { casos: [], eventos: [], kpiCasos: {}, kpi: {} };
+var DATOS = { casos: [], eventos: [], seguimientos: [], kpiCasos: {}, kpi: {}, kpiSeguimientos: {} };
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 var SESION=null;
@@ -341,16 +361,27 @@ function pintarUsuario(){
   bar.innerHTML='<span class="u-nombre">'+esc(SESION.nombre||SESION.email)+'</span>'+
     '<span class="u-rol">'+esc(SESION.rol||'')+'</span>'+
     '<button class="btn-salir" onclick="cerrarSesionUI()">Salir</button>';
-  var nb=document.getElementById('btn-nuevo-wrap');
-  if(nb)nb.style.display=esAdmin()?'':'none';
   var ub=document.getElementById('btn-usuarios-wrap');
   if(ub)ub.style.display=esAdmin()?'':'none';
-  var evb=document.getElementById('btn-evento-wrap');
-  if(evb)evb.style.display=esAdmin()?'':'none';
-  var acb=document.getElementById('btn-accion-wrap');
-  if(acb)acb.style.display=esAdmin()?'':'none';
   var mb=document.getElementById('btn-mis-casos');
   if(mb)mb.style.display=SESION?'':'none';
+  pintarBotonesVista();
+}
+// Los botones de acción dependen del rol Y de la pestaña abierta.
+function pintarBotonesVista(){
+  var admin=esAdmin(),prof=!!SESION&&SESION.rol==='Profesional',seg=(VISTA==='seguimientos');
+  var nb=document.getElementById('btn-nuevo-wrap');            // + Nuevo caso
+  if(nb)nb.style.display=(!seg&&admin)?'':'none';
+  var nbseg=document.getElementById('btn-nuevo-seg-wrap');     // + Nuevo seguimiento
+  // Admin y Profesional pueden dar de alta seguimientos (el backend valida
+  // que el Profesional solo toque sus casos asignados); Visita es solo lectura.
+  if(nbseg)nbseg.style.display=(seg&&(admin||prof))?'':'none';
+  var ib=document.getElementById('btn-importar-seg-wrap');     // ⇪ Importar de la hoja
+  if(ib)ib.style.display=(seg&&admin)?'':'none';
+  var evb=document.getElementById('btn-evento-wrap');          // + Nuevo evento
+  if(evb)evb.style.display=(VISTA==='planes'&&admin)?'':'none';
+  var acb=document.getElementById('btn-accion-wrap');          // + Nueva acción
+  if(acb)acb.style.display=(VISTA==='planes'&&admin)?'':'none';
 }
 function irALogin(){
   try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
@@ -394,6 +425,7 @@ function init(){
 }
 var FILTRO_KPI=null;
 function renderKpis(){
+  if(VISTA==='seguimientos'){renderKpisSeguimientos();return;}
   var kc=DATOS.kpiCasos||{};
   var h='';
   h+=kpi('Casos totales',kc.total,'azul','');
@@ -404,13 +436,29 @@ function renderKpis(){
   h+=kpi('Planes mejora',(DATOS.eventos||[]).length,'azul','planes');
   document.getElementById('kpis').innerHTML=h;
 }
+function renderKpisSeguimientos(){
+  var ks=DATOS.kpiSeguimientos||{};
+  var h='';
+  h+=kpi('Compromisos',ks.total,'azul','seg-todo');
+  h+=kpi('Cumple',ks.cumple,'verde','seg-cumple');
+  h+=kpi('Parcial',ks.parcial,'amarillo','seg-parcial');
+  h+=kpi('No cumple',ks.noCumple,'rojo','seg-nocumple');
+  h+=kpi('Sin vincular',ks.sinVincular,'naranja','seg-sinvincular');
+  h+=kpi('Promedio %',(ks.promedio==null?'—':ks.promedio),'azul','');
+  document.getElementById('kpis').innerHTML=h;
+}
 function kpi(n,v,cl,f){
   var act=(FILTRO_KPI===f&&f!=='')?' activo':'';
   return '<div class="kpi '+cl+act+'" onclick="filtrarKpi(\''+f+'\')"><div class="n">'+(v==null?0:v)+'</div><div class="l">'+n+'</div></div>';
 }
 function filtrarKpi(f){
-  FILTRO_KPI=f||null;
+  FILTRO_KPI=(f&&f!=='')?f:null;
   document.getElementById('buscar').value='';
+  if(VISTA==='seguimientos'){
+    var e=document.getElementById('f-sg-estado');if(e)e.value='';
+    var pr=document.getElementById('f-sg-prof');if(pr)pr.value='';
+    renderKpis();render();return;
+  }
   document.getElementById('f-prof').value='';
   document.getElementById('f-eapb').value='';
   document.getElementById('f-estado').value='';
@@ -470,13 +518,15 @@ function ordenar(a,b){
   return tb-ta;
 }
 function poblarFiltros(){
-  var profs={},eapbs={};
+  var profs={},eapbs={},sgprofs={};
   (DATOS.casos||[]).forEach(function(c){
     if(c.profesional)profs[c.profesional]=1;
     if(c.eapb)eapbs[c.eapb]=1;
   });
+  (DATOS.seguimientos||[]).forEach(function(s){if(s.profesional)sgprofs[s.profesional]=1;});
   llenarSel('f-prof','Profesional (todos)',Object.keys(profs).sort());
   llenarSel('f-eapb','EAPB (todas)',Object.keys(eapbs).sort());
+  llenarSel('f-sg-prof','Profesional (todos)',Object.keys(sgprofs).sort());
 }
 function llenarSel(id,todas,valores){
   var s=document.getElementById(id),prev=s.value;
@@ -494,6 +544,15 @@ function limpiarFiltros(){
   renderKpis();
   render();
 }
+function limpiarFiltrosSeg(){
+  FILTRO_KPI=null;
+  var p=document.getElementById('f-sg-prof');if(p)p.value='';
+  var e=document.getElementById('f-sg-estado');if(e)e.value='';
+  var o=document.getElementById('f-sg-orden');if(o)o.value='alerta';
+  var b=document.getElementById('buscar');if(b)b.value='';
+  renderKpis();
+  render();
+}
 var SOLO_MIOS=false;
 function toggleMisCasos(){
   SOLO_MIOS=!SOLO_MIOS;
@@ -502,8 +561,30 @@ function toggleMisCasos(){
   render();
 }
 var VISTA='casos';
-function setVista(v){VISTA=v;document.getElementById('tab-casos').classList.toggle('on',v==='casos');document.getElementById('tab-planes').classList.toggle('on',v==='planes');render();}
-function render(){if(VISTA==='planes')renderPlanes();else renderCasos();}
+function setVista(v){
+  VISTA=v;
+  document.getElementById('tab-casos').classList.toggle('on',v==='casos');
+  document.getElementById('tab-planes').classList.toggle('on',v==='planes');
+  document.getElementById('tab-seguimientos').classList.toggle('on',v==='seguimientos');
+  var fc=document.getElementById('filtros-casos');
+  var fs=document.getElementById('filtros-seg');
+  if(fc)fc.style.display=(v==='casos')?'':'none';
+  if(fs)fs.style.display=(v==='seguimientos')?'':'none';
+  var b=document.getElementById('buscar');
+  if(b)b.placeholder=(v==='seguimientos')
+    ?'Buscar por nombre, cédula, compromiso, EAPB...'
+    :'Buscar por nombre, cédula, EAPB, profesional...';
+  // Cada vista tiene su propio filtro por KPI.
+  FILTRO_KPI=null;
+  pintarBotonesVista();
+  renderKpis();
+  render();
+}
+function render(){
+  if(VISTA==='planes')renderPlanes();
+  else if(VISTA==='seguimientos')renderSeguimientos();
+  else renderCasos();
+}
 function hayCriterio(){
   if(SOLO_MIOS)return true;
   if(FILTRO_KPI)return true;
@@ -532,6 +613,265 @@ function renderCasos(){
   casos.forEach(function(c){h+=filaCaso(c);});
   h+='</div>';
   document.getElementById('v-casos').innerHTML=h;
+}
+// ---------------- Vista: Seguimientos (compromisos de UDA) ----------------
+function claveSeg(s){return (s&&s.id)?s.id:('fila'+(s&&s.fila));}
+function etEstadoSeg(est){
+  var cls=est==='CUMPLE'?'verde':est==='PARCIAL'?'amarillo':est==='NO CUMPLE'?'rojo':'gris';
+  return '<span class="et '+cls+'">'+esc(est||'Sin estado')+'</span>';
+}
+function puedeEditarSegUI(s){
+  if(esVisita())return false;
+  if(esAdmin())return true;
+  // Profesional: solo sus compromisos (el backend vuelve a validar).
+  return !!(SESION&&SESION.nombre&&s&&String(s.profesional||'').trim().toLowerCase()===String(SESION.nombre).trim().toLowerCase());
+}
+function filtroSeg(s){
+  if(FILTRO_KPI==='seg-cumple'&&s.estado!=='CUMPLE')return false;
+  if(FILTRO_KPI==='seg-parcial'&&s.estado!=='PARCIAL')return false;
+  if(FILTRO_KPI==='seg-nocumple'&&s.estado!=='NO CUMPLE')return false;
+  if(FILTRO_KPI==='seg-sinvincular'&&s.idCaso)return false;
+  var q=(document.getElementById('buscar').value||'').toLowerCase();
+  if(q){
+    var j=((s.id||'')+' '+(s.caso||'')+' '+(s.nombre||'')+' '+(s.identificacion||'')+' '+(s.compromiso||'')+' '+(s.eapb||'')+' '+(s.ips||'')+' '+(s.profesional||'')+' '+(s.observacion||'')).toLowerCase();
+    if(j.indexOf(q)<0)return false;
+  }
+  var prof=document.getElementById('f-sg-prof').value;
+  if(prof&&(s.profesional||'')!==prof)return false;
+  var est=document.getElementById('f-sg-estado').value;
+  if(est==='SIN VINCULAR'){if(s.idCaso)return false;}
+  else if(est&&s.estado!==est)return false;
+  return true;
+}
+function ordenarSeg(a,b){
+  var o=document.getElementById('f-sg-orden').value;
+  if(o==='nombre')return String(a.caso||'').localeCompare(String(b.caso||''));
+  if(o==='cumplimiento'){
+    var va=parseFecha(a.fechaCumplimiento),vb=parseFecha(b.fechaCumplimiento);
+    if(!va&&!vb)return 0;
+    if(!va)return 1;
+    if(!vb)return -1;
+    return va-vb;
+  }
+  return 0; // 'alerta': el backend ya ordena por severidad.
+}
+function renderSeguimientos(){
+  var cont=document.getElementById('v-casos');
+  var lista=(DATOS.seguimientos||[]).filter(filtroSeg);
+  lista.sort(ordenarSeg);
+  if(!lista.length){
+    cont.innerHTML='<div class="vacio">No hay compromisos de seguimiento que coincidan con los filtros. Los compromisos se cargan desde el Excel: pega las 17 columnas en la hoja "Importar" y usa el menú Radar → "Importar seguimientos desde Excel".</div>';
+    return;
+  }
+  var total=(DATOS.seguimientos||[]).length;
+  var h='<div class="info-res">Mostrando '+lista.length+' de '+total+' compromisos de seguimiento</div>';
+  h+='<div class="lista-nombres">';
+  lista.forEach(function(s){h+=filaSeguimiento(s);});
+  h+='</div>';
+  cont.innerHTML=h;
+}
+function filaSeguimiento(s){
+  var k=claveSeg(s);
+  var e='<div class="caso-item" id="sgitem-'+esc(k)+'">';
+  e+='<div class="caso-cab" onclick="toggleSeguimiento(\''+esc(k)+'\')">';
+  e+='<span class="caso-caret" id="sgcaret-'+esc(k)+'">›</span>';
+  e+='<span class="caso-nombre">'+esc(s.caso||s.nombre||'(sin nombre)')+'</span>';
+  e+='<span class="caso-ets">';
+  e+=etEstadoSeg(s.estado);
+  if(!s.idCaso)e+='<span class="et rojo">Sin vincular</span>';
+  if(s.alerta&&(s.alerta==='VENCIDA'||s.alerta==='SIN FECHA'))e+='<span class="campana">🔔 '+esc(s.alerta)+'</span>';
+  e+='<span class="et gris">'+esc(s.profesional||'Sin profesional')+'</span>';
+  e+='</span></div>';
+  e+='<div class="caso-det" id="sgdet-'+esc(k)+'" style="display:none"></div>';
+  e+='</div>';
+  return e;
+}
+function toggleSeguimiento(k){
+  var det=document.getElementById('sgdet-'+k);
+  var item=document.getElementById('sgitem-'+k);
+  if(!det)return;
+  if(det.style.display!=='none'){
+    det.style.display='none';
+    if(item)item.classList.remove('abierta');
+    return;
+  }
+  if(!det.innerHTML){
+    var s=(DATOS.seguimientos||[]).filter(function(x){return claveSeg(x)===k;})[0];
+    if(s)det.innerHTML=tarjetaSeguimiento(s);
+  }
+  det.style.display='';
+  if(item)item.classList.add('abierta');
+}
+function tarjetaSeguimiento(s){
+  var e='<div class="tarjeta">';
+  e+='<div class="etiqs">'+etEstadoSeg(s.estado);
+  if(!s.idCaso)e+='<span class="et rojo">Sin vincular a un caso</span>';
+  if(s.alerta&&(s.alerta==='VENCIDA'||s.alerta==='SIN FECHA'))e+='<span class="campana">🔔 '+esc(s.alerta)+'</span>';
+  e+='<span class="et azul">'+esc(s.id||('fila '+s.fila))+'</span>';
+  e+='<span class="et gris">'+esc(s.profesional||'Sin profesional')+'</span>';
+  e+='</div>';
+  e+='<div class="titulo">'+esc(s.compromiso||'(sin compromiso)')+'</div>';
+  e+=grupo('Caso vinculado',
+    fila('Caso',s.caso)+fila('NOMBRE',s.nombre)+fila('Tipo de ID',s.tipoId)+
+    fila('N° identificación',s.identificacion)+fila('ID caso',s.idCaso)+fila('Vínculo',s.vinculo));
+  e+=grupo('Evento y UDA',
+    fila('EVENTO',s.evento)+fila('FECHA DE UDA',s.fechaUda)+fila('EAPB responsable',s.eapb)+
+    fila('IPS responsable',s.ips)+fila('Seguimientos realizados (fechas)',s.fechasSeguimiento));
+  e+=grupo('Compromiso y seguimiento',
+    fila('COMPROMISO',s.compromiso)+fila('Responsable del compromiso',s.responsableCompromiso)+
+    fila('Fecha de cumplimiento',s.fechaCumplimiento)+fila('Responsable del seguimiento',s.responsableSeguimiento)+
+    fila('Fecha de seguimiento',s.fechaSeguimiento)+fila('OBSERVACIÓN',s.observacion));
+  e+=grupo('Estado del compromiso',
+    fila('ESTADO',s.estado)+fila('PORCENTAJE',(s.porcentaje===''||s.porcentaje==null||s.porcentaje===undefined)?'':s.porcentaje+'%')+
+    fila('Días para cumplimiento',(s.dias===null||s.dias===undefined)?'':s.dias)+fila('Última actualización',s.actualizacion));
+  var avisos=[];
+  if(s.avisoUda)avisos.push('FECHA DE UDA: '+s.avisoUda);
+  if(s.avisoCumplimiento)avisos.push('Fecha de cumplimiento: '+s.avisoCumplimiento);
+  if(s.avisoSeguimiento)avisos.push('Fecha de seguimiento: '+s.avisoSeguimiento);
+  if(avisos.length)e+='<div class="detalle">⚠️ Revisar dato del Excel — '+esc(avisos.join(' · '))+'</div>';
+  if(s.detalleAlerta)e+='<div class="detalle">'+esc(s.detalleAlerta)+'</div>';
+  e+='<div class="accs">';
+  if(puedeEditarSegUI(s)){
+    e+='<button class="btn sec sm" onclick="modalEditarSeguimiento(\''+esc(s.id)+'\')">Editar</button>';
+    e+='<button class="btn mal sm" onclick="eliminarSeguimientoUI(\''+esc(s.id)+'\')">Eliminar</button>';
+  }
+  if(s.idCaso)e+='<button class="btn sec sm" onclick="verCasoDesdeSeguimiento(\''+esc(s.idCaso)+'\')">Ver caso</button>';
+  e+='</div>';
+  e+='</div>';
+  return e;
+}
+function modalNuevoSeguimiento(){
+  var h='<h2>Nuevo seguimiento (compromiso de UDA)</h2><p class="ayuda">Los campos con * son obligatorios. El sistema intenta vincular el compromiso a un caso por cédula; si no lo logra quedará marcado en rojo como "Sin vincular".</p><div class="grid">';
+  h+=camp('NOMBRE *','sg-nombre','text','',true);
+  h+=camp('N° identificación (cédula)','sg-ident','text');
+  h+=camp('EVENTO','sg-evento','text');
+  h+=camp('FECHA DE UDA','sg-uda','date');
+  h+=camp('EAPB responsable','sg-eapb','text');
+  h+=camp('IPS responsable','sg-ips','text');
+  h+=camp('COMPROMISO *','sg-compromiso','textarea','',true);
+  h+=camp('Responsable del compromiso','sg-resp-comp','text');
+  h+=camp('Fecha de cumplimiento','sg-fecha-cumpl','date');
+  h+=camp('Responsable del seguimiento','sg-resp-seg','text');
+  h+=camp('Fecha de seguimiento','sg-fecha-seg','date');
+  h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],'PARCIAL');
+  h+=camp('PORCENTAJE (0-100)','sg-porc','number');
+  h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea','',true);
+  h+=campSelect('Profesional responsable','sg-prof',nombresProfesionales(),(SESION&&SESION.nombre)||'');
+  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarNuevoSeguimiento()">Guardar seguimiento</button></div>';
+  abrirModal(h);
+}
+function guardarNuevoSeguimiento(){
+  var d={
+    nombre:v('sg-nombre'),identificacion:v('sg-ident'),evento:v('sg-evento'),fechaUda:v('sg-uda'),
+    eapb:v('sg-eapb'),ips:v('sg-ips'),compromiso:v('sg-compromiso'),responsableCompromiso:v('sg-resp-comp'),
+    fechaCumplimiento:v('sg-fecha-cumpl'),responsableSeguimiento:v('sg-resp-seg'),fechaSeguimiento:v('sg-fecha-seg'),
+    estado:v('sg-estado'),porcentaje:v('sg-porc'),observacion:v('sg-obs'),profesional:v('sg-prof')
+  };
+  if(!d.nombre||!d.compromiso){toast('NOMBRE y COMPROMISO son obligatorios.',true);return;}
+  apiPost({accion:'nuevoSeguimiento',datos:d}).then(function(r){
+    if(r&&r.ok){cerrarModal();toast(r.mensaje||'Seguimiento registrado.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo registrar el seguimiento.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function modalEditarSeguimiento(id){
+  var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  if(!s)return;
+  var h='<h2>Editar seguimiento · '+esc(id)+'</h2><p class="ayuda">'+esc(s.caso||s.nombre||'')+'</p><div class="grid">';
+  h+=camp('NOMBRE *','sg-nombre','text',s.nombre,true);
+  h+=camp('N° identificación (cédula)','sg-ident','text',s.identificacion);
+  h+=camp('EVENTO','sg-evento','text',s.evento);
+  h+=camp('FECHA DE UDA','sg-uda','date',aInputFecha(s.fechaUda));
+  h+=camp('EAPB responsable','sg-eapb','text',s.eapb);
+  h+=camp('IPS responsable','sg-ips','text',s.ips);
+  h+=camp('COMPROMISO *','sg-compromiso','textarea',s.compromiso,true);
+  h+=camp('Responsable del compromiso','sg-resp-comp','text',s.responsableCompromiso);
+  h+=camp('Fecha de cumplimiento','sg-fecha-cumpl','date',aInputFecha(s.fechaCumplimiento));
+  h+=camp('Responsable del seguimiento','sg-resp-seg','text',s.responsableSeguimiento);
+  h+=camp('Fecha de seguimiento','sg-fecha-seg','date',aInputFecha(s.fechaSeguimiento));
+  h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],s.estado||'PARCIAL');
+  h+=camp('PORCENTAJE (0-100)','sg-porc','number',s.porcentaje);
+  h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea',s.observacion,true);
+  h+=campSelect('Profesional responsable','sg-prof',nombresProfesionales(),s.profesional||'');
+  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSeguimiento(\''+esc(id)+'\')">Guardar</button></div>';
+  abrirModal(h);
+}
+function guardarSeguimiento(id){
+  var d={
+    id:id,
+    nombre:v('sg-nombre'),identificacion:v('sg-ident'),evento:v('sg-evento'),fechaUda:v('sg-uda'),
+    eapb:v('sg-eapb'),ips:v('sg-ips'),compromiso:v('sg-compromiso'),responsableCompromiso:v('sg-resp-comp'),
+    fechaCumplimiento:v('sg-fecha-cumpl'),responsableSeguimiento:v('sg-resp-seg'),fechaSeguimiento:v('sg-fecha-seg'),
+    estado:v('sg-estado'),porcentaje:v('sg-porc'),observacion:v('sg-obs'),profesional:v('sg-prof')
+  };
+  if(!d.nombre||!d.compromiso){toast('NOMBRE y COMPROMISO son obligatorios.',true);return;}
+  apiPost({accion:'actualizarSeguimiento',datos:d}).then(function(r){
+    if(r&&r.ok){cerrarModal();toast(r.mensaje||'Seguimiento actualizado.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo actualizar el seguimiento.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function eliminarSeguimientoUI(id){
+  if(!confirm('¿Eliminar el seguimiento '+id+'? Esta acción no se puede deshacer.'))return;
+  apiPost({accion:'eliminarSeguimiento',id:id}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Seguimiento eliminado.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo eliminar el seguimiento.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function importarSeguimientosUI(){
+  var p=prompt('Importar desde la hoja "Importar" del Excel.\n\nProfesional responsable (opcional, ej. DIANA o LUCIA):','');
+  if(p===null)return;
+  toast('Importando...');
+  apiPost({accion:'importarSeguimientos',datos:{profesional:p}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Importación finalizada.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo importar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+// --- Compromisos dentro de la ficha del caso ---
+function seguimientosDeCasoHTML(c){
+  var lista=(DATOS.seguimientos||[]).filter(function(s){return s.idCaso===c.id;});
+  var h='<div class="grupo"><div class="gt">Compromisos de seguimiento (UDAs)</div>';
+  if(!lista.length){
+    h+='<span class="vacio-sm">Sin compromisos de seguimiento vinculados a este caso.</span>';
+  }else{
+    h+='<div class="docs-inline">';
+    lista.forEach(function(s){
+      var pct=(s.porcentaje!==''&&s.porcentaje!=null&&s.porcentaje!==undefined)?'<span class="et azul">'+esc(s.porcentaje)+'%</span>':'';
+      h+='<div class="visita-item"><div class="visita-cab">'+etEstadoSeg(s.estado)+
+        '<span class="v-fecha">'+esc(s.fechaCumplimiento||'Sin fecha de cumplimiento')+'</span>'+pct+
+        '<span class="et gris">'+esc(s.profesional||'Sin profesional')+'</span>'+
+        '</div><div class="visita-cuerpo"><div class="visita-txt">'+esc(s.compromiso||'(sin compromiso)')+'</div>'+
+        (s.observacion?'<div class="visita-lb">Observación</div><div class="visita-txt">'+esc(s.observacion)+'</div>':'')+
+        '</div></div>';
+    });
+    h+='</div>';
+    h+='<div style="margin-top:10px"><button class="btn sec sm" onclick="verSeguimientosDeCaso(\''+esc(c.id)+'\')">Ver en la pestaña Seguimientos</button></div>';
+  }
+  if(esAdmin()||puedeEditarUI(c)){
+    h+='<div style="margin-top:10px"><button class="btn sec sm" onclick="modalNuevoSeguimientoPara(\''+esc(c.id)+'\')">+ Nuevo compromiso para este caso</button></div>';
+  }
+  h+='</div>';
+  return h;
+}
+function modalNuevoSeguimientoPara(idCaso){
+  modalNuevoSeguimiento();
+  var c=(DATOS.casos||[]).filter(function(x){return x.id===idCaso;})[0];
+  if(!c)return;
+  var n=document.getElementById('sg-nombre');if(n&&!n.value)n.value=c.caso||'';
+  var i=document.getElementById('sg-ident');if(i&&!i.value)i.value=c.cc||'';
+  var p=document.getElementById('sg-prof');if(p&&!p.value)p.value=c.profesional||'';
+}
+function verSeguimientosDeCaso(idCaso){
+  setVista('seguimientos');
+  var b=document.getElementById('buscar');
+  var c=(DATOS.casos||[]).filter(function(x){return x.id===idCaso;})[0];
+  if(b)b.value=(c&&(c.cc||c.caso))||idCaso;
+  render();
+}
+function verCasoDesdeSeguimiento(idCaso){
+  setVista('casos');
+  var b=document.getElementById('buscar');
+  var c=(DATOS.casos||[]).filter(function(x){return x.id===idCaso;})[0];
+  if(b)b.value=(c&&(c.cc||c.caso))||idCaso;
+  render();
 }
 function grupoCaso(c){
   var est=String(c.estado||'').toLowerCase();
@@ -626,11 +966,12 @@ function tarjetaCaso(c){
   e+=grupo('Datos básicos',fila('Cédula',c.cc)+fila('Edad',(c.edad!==''&&c.edad!=null)?c.edad+' años':'')+fila('Gestaciones',c.gestaciones)+fila('Evento (CIE)',c.evento));
   e+=grupo('Fechas',fila('Defunción',c.fechaDefuncion)+fila('Asignación',c.fechaAsignacion)+fila('Vencimiento',c.fechaVencimiento?c.fechaVencimiento+dias:'')+fila('Realización',c.fechaRealizacion)+fila('Período epi',c.periodo));
   e+=grupo('Instituciones',fila('EAPB',c.eapb)+fila('IPS 1er nivel',c.ipsPrimerNivel)+fila('IPS parto',c.ipsParto));
-  e+=grupo('Análisis y seguimiento',fila('Observación',c.observacion)+fila('Causa de muerte',c.causaMuerte)+fila('Conclusión UA',c.conclusion)+fila('Intervinientes UA',c.intervinientes)+fila('Seguimiento',c.seguimiento)+fila('Otros datos',c.otrosDatos));
+  e+=grupo('Análisis del caso',fila('Observación',c.observacion)+fila('Causa de muerte',c.causaMuerte)+fila('Conclusión UA',c.conclusion)+fila('Intervinientes UA',c.intervinientes)+fila('Otros datos',c.otrosDatos));
   if(c.detalleAlerta)e+='<div class="detalle">'+esc(c.detalleAlerta)+'</div>';
   e+='<div class="grupo"><div class="gt">Documentación en Drive</div><div class="docs-inline" id="docs-'+esc(c.id)+'"><span class="docs-cargando-sm">Cargando soportes…</span></div></div>';
   e+='<div class="grupo"><div class="gt">Visitas técnicas</div><div id="visitas-'+esc(c.id)+'" class="docs-inline"><span class="vacio-sm">Cargando visitas…</span></div>'+
      (puedeEditarUI(c)?'<div style="margin-top:10px"><button class="btn sec sm" onclick="modalVisita(\''+esc(c.id)+'\')">+ Agregar visita</button></div>':'')+'</div>';
+  e+=seguimientosDeCasoHTML(c);
   e+='<div class="accs">';
   if(esAdmin())e+='<button class="btn sec sm" onclick="modalAsignar(\''+esc(c.id)+'\')">Asignar profesional</button>';
   if(puedeEditarUI(c))e+='<button class="btn sec sm" onclick="modalSeg(\''+esc(c.id)+'\')">Editar</button>';
@@ -696,7 +1037,6 @@ function modalNuevo(){
   var h='<h2>Nuevo caso</h2><p class="ayuda">Los campos con * son obligatorios. Las listas desplegables salen de la hoja Catálogos del Excel.</p><div class="grid">';
   h+=camp('Nombre del caso *','n-caso','text','',true);
   h+=camp('Cédula *','n-cc','text');
-  h+=campSelect('Estado del seguimiento','n-estado',catLista('estadosCaso',DATOS.estadosCaso||[]),(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
   h+=camp('Edad','n-edad','number');
   h+=camp('Gestaciones','n-gest','text');
   h+=campSelect('Evento (CIE)','n-evento',catLista('eventos',valoresDe('evento')),'');
@@ -713,7 +1053,6 @@ function modalNuevo(){
   h+=campSelect('Conclusión UA','n-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),'');
   h+=campSelect('Profesional asignado','n-prof',catLista('profesionales',nombresProfesionales()),'');
   h+=camp('Intervinientes UA','n-inter','textarea','',true);
-  h+=camp('Seguimiento','n-seg','textarea','',true);
   h+=camp('Otros datos','n-otros','textarea','',true);
   h+=camp('Soportes / archivos (se suben a Drive)','n-archivos','file','',true);
   h+='<div id="subida" style="display:none"><div class="prog-lb" id="prog-lb">Subiendo archivos a Drive…</div><div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div>';
@@ -726,7 +1065,8 @@ function guardarNuevo(){
     fechaDefuncion:v('n-def'),fechaAsignacion:v('n-asig'),fechaVencimiento:v('n-venc'),fechaRealizacion:v('n-real'),
     periodo:v('n-per'),eapb:v('n-eapb'),ipsPrimerNivel:v('n-ips1'),ipsParto:v('n-ips2'),
     observacion:v('n-obs'),causaMuerte:v('n-causa'),conclusion:v('n-conc'),profesional:v('n-prof'),
-    intervinientes:v('n-inter'),seguimiento:v('n-seg'),otrosDatos:v('n-otros'),estado:v('n-estado')
+    // El estado del caso se mantiene en la hoja Casos (no se pide en el formulario).
+    intervinientes:v('n-inter'),otrosDatos:v('n-otros'),estado:'Pendiente'
   };
   if(!d.caso||!d.cc||!d.fechaDefuncion){toast('Caso, cédula y fecha de defunción son obligatorios.',true);return;}
   var inputFile=document.getElementById('n-archivos');
@@ -777,7 +1117,6 @@ function modalSeg(id){
   var h='<h2>Editar caso · '+esc(c.id)+'</h2><p class="ayuda">'+esc(c.caso)+'</p><div class="grid">';
   h+=camp('Nombre del caso','s-caso','text',c.caso,true);
   h+=camp('Cédula','s-cc','text',c.cc);
-  h+=campSelect('Estado del seguimiento','s-estado',catLista('estadosCaso',DATOS.estadosCaso||[]),c.estado||(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
   h+=camp('Edad','s-edad','number',c.edad);
   h+=camp('Gestaciones','s-gest','text',c.gestaciones);
   h+=campSelect('Evento (CIE)','s-evento',catLista('eventos',valoresDe('evento')),c.evento);
@@ -794,19 +1133,20 @@ function modalSeg(id){
   h+=campSelect('Conclusión UA','s-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),c.conclusion);
   h+=campSelect('Profesional asignado','s-prof',catLista('profesionales',nombresProfesionales()),c.profesional);
   h+=camp('Intervinientes UA','s-inter','textarea',c.intervinientes,true);
-  h+=camp('Seguimiento','s-seg','textarea',c.seguimiento,true);
   h+=camp('Otros datos','s-otros','textarea',c.otrosDatos,true);
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSeg(\''+esc(id)+'\')">Guardar</button></div>';
   abrirModal(h);
 }
 function guardarSeg(id){
+  var c=(DATOS.casos||[]).filter(function(x){return x.id===id;})[0]||{};
   var d={
     id:id,
     caso:v('s-caso'),cc:v('s-cc'),edad:v('s-edad'),gestaciones:v('s-gest'),evento:v('s-evento'),
     fechaDefuncion:v('s-def'),fechaAsignacion:v('s-asig'),fechaVencimiento:v('s-venc'),fechaRealizacion:v('s-real'),
     periodo:v('s-per'),eapb:v('s-eapb'),ipsPrimerNivel:v('s-ips1'),ipsParto:v('s-ips2'),
     observacion:v('s-obs'),causaMuerte:v('s-causa'),conclusion:v('s-conc'),profesional:v('s-prof'),
-    intervinientes:v('s-inter'),seguimiento:v('s-seg'),otrosDatos:v('s-otros'),estado:v('s-estado')
+    // El estado del caso no se pide en el formulario: se conserva el actual.
+    intervinientes:v('s-inter'),otrosDatos:v('s-otros'),estado:c.estado||'Pendiente'
   };
   apiPost({accion:'editarSeguimiento',datos:d}).then(function(r){
     if(r&&r.ok){cerrarModal();toast(r.mensaje||'Actualizado.');cargar();}

@@ -8,6 +8,8 @@ function instalarSistema() {
   crearHoja(CFG.HOJAS.ALERTAS, COL.ALERTAS, [150, 95, 170, 160, 300, 100, 95, 110, 85, 300]);
   crearHoja(CFG.HOJAS.TABLERO, [], []);
   crearHoja(CFG.HOJAS.CONFIG, COL.CONFIG, [240, 300, 440]);
+  crearHoja(CFG.HOJAS.SEGUIMIENTOS, COL.SEGUIMIENTOS, ANCHOS_SEGUIMIENTOS);
+  crearHoja(CFG.HOJAS.IMPORTAR, COL.IMPORTAR_EXCEL, ANCHOS_IMPORTAR);
 
   instalarParametros();
   instalarValidaciones();
@@ -104,6 +106,12 @@ function instalarValidaciones() {
   const colConclusion = indiceColumna('CONCLUSIÓN UNIDAD DE ANÁLISIS', COL.CASOS);
   hc.getRange(letraColumna(colConclusion) + '2:' + letraColumna(colConclusion) + '5000')
     .setDataValidation(nuevaValidacion(CFG.CONCLUSIONES));
+
+  // Hoja Seguimientos: Estado del compromiso con lista cerrada.
+  const hs = hojaPorNombre(CFG.HOJAS.SEGUIMIENTOS);
+  const colEstadoSeg = indiceColumna('ESTADO', COL.SEGUIMIENTOS);
+  hs.getRange(letraColumna(colEstadoSeg) + '2:' + letraColumna(colEstadoSeg) + '5000')
+    .setDataValidation(nuevaValidacion(CFG.ESTADOS_SEGUIMIENTO));
 }
 
 function nuevaValidacion(valores) {
@@ -243,6 +251,41 @@ function instalarFormatoCondicional() {
       .setRanges([hc.getRange('A2:' + colReal + ultimaFilaCasos)])
       .build()
   ]);
+
+  instalarFormatoSeguimientos();
+}
+
+function instalarFormatoSeguimientos() {
+  const h = hojaPorNombre(CFG.HOJAS.SEGUIMIENTOS);
+  const cEstado = letraColumna(indiceColumna('ESTADO', COL.SEGUIMIENTOS));
+  const cVinculo = letraColumna(indiceColumna('Vínculo', COL.SEGUIMIENTOS));
+  const ultimaFila = Math.max(h.getLastRow(), 5000);
+
+  h.getRange(cEstado + '2:' + cEstado + ultimaFila).setDataValidation(nuevaValidacion(CFG.ESTADOS_SEGUIMIENTO));
+
+  h.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('CUMPLE')
+      .setBackground(CFG.COLOR.VERIFICADA)
+      .setRanges([h.getRange(cEstado + '2:' + cEstado + ultimaFila)])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('PARCIAL')
+      .setBackground(CFG.COLOR.PENDIENTE)
+      .setRanges([h.getRange(cEstado + '2:' + cEstado + ultimaFila)])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('NO CUMPLE')
+      .setBackground(CFG.COLOR.VENCIDA)
+      .setBold(true)
+      .setRanges([h.getRange(cEstado + '2:' + cEstado + ultimaFila)])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo('Sin vincular')
+      .setBackground(CFG.COLOR.SIN_VERIFICAR)
+      .setRanges([h.getRange(cVinculo + '2:' + cVinculo + ultimaFila)])
+      .build()
+  ]);
 }
 
 function actualizarTodo() {
@@ -263,6 +306,9 @@ function onOpen() {
     .createMenu('Radar')
     .addItem('Instalar / Reparar sistema', 'instalarSistema')
     .addItem('Abrir panel de seguimiento', 'abrirPanel')
+    .addSeparator()
+    .addItem('Importar seguimientos desde Excel', 'menuImportarSeguimientos')
+    .addItem('Recalcular vínculos de seguimientos', 'menuMarcarVinculosSeguimiento')
     .addSeparator()
     .addItem('Actualizar alertas y tablero', 'actualizarTodo')
     .addItem('Enviar alertas por correo', 'enviarAlertasPorCorreo')
