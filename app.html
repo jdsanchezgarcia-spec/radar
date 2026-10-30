@@ -1460,7 +1460,7 @@ function renderPlanes(){
   var q=(document.getElementById('buscar').value||'').trim().toLowerCase();
   var acc=(DATOS.acciones||[]).slice();
   if(q)acc=acc.filter(function(a){return (a.id+' '+a.institucion+' '+a.responsable+' '+a.accion+' '+a.hallazgo).toLowerCase().indexOf(q)>=0;});
-  if(!acc.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay acciones de mejora registradas'+(q?' que coincidan con la búsqueda':'')+'. Se crean desde la hoja de cálculo (menú Radar → Registrar acción de mejora).</div>';return;}
+  if(!acc.length){document.getElementById('v-casos').innerHTML='<div class="vacio">No hay acciones de mejora registradas'+(q?' que coincidan con la búsqueda':'')+'. Se crean con los botones "+ Nuevo evento" y "+ Nueva acción" de arriba (solo Admin).</div>';return;}
   var h='<div class="info-res">'+acc.length+' acción(es) de mejora</div><div class="lista-nombres">';
   acc.forEach(function(a){h+=filaAccion(a);});
   h+='</div>';
@@ -1512,6 +1512,7 @@ function tarjetaAccion(a){
     e+='<button class="btn sec sm" onclick="sincronizarAccion(\''+esc(a.id)+'\')">Sincronizar</button>';
   }
   e+=botonesTransicion(a);
+  if(esAdmin())e+='<button class="btn mal sm" onclick="eliminarAccionUI(\''+esc(a.id)+'\')">Eliminar</button>';
   e+='</div></div>';
   return e;
 }
@@ -1553,6 +1554,13 @@ function transicionAccion(idAccion,estado){
   apiPost({accion:'cambiarEstadoAccion',idAccion:idAccion,estado:estado})
     .then(function(r){if(r.ok){toast(r.mensaje);cargar();}else toast(r.mensaje,true);})
     .catch(function(e){toast(e.message,true);});
+}
+function eliminarAccionUI(id){
+  if(!confirm('¿Eliminar la acción '+id+'? Esta acción no se puede deshacer.'))return;
+  apiPost({accion:'eliminarAccion',id:id}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Acción eliminada.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo eliminar la acción.',true);
+  }).catch(function(e){toast(e.message,true);});
 }
 function modalVerificar(idAccion,aprobar){
   var a=(DATOS.acciones||[]).filter(function(x){return x.id===idAccion;})[0];

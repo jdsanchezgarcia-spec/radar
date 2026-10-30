@@ -1,17 +1,17 @@
 function registrarAccion(datos) {
   const requeridos = [
-    ['institucion', 'La institución responsable'],
-    ['responsable', 'El responsable asignado'],
-    ['hallazgo', 'El hallazgo identificado'],
-    ['accion', 'La acción propuesta'],
-    ['fechaLimite', 'La fecha límite']
+    ['institucion', 'la institución responsable'],
+    ['responsable', 'el responsable asignado'],
+    ['hallazgo', 'el hallazgo identificado'],
+    ['accion', 'la acción propuesta'],
+    ['fechaLimite', 'la fecha límite']
   ];
   requeridos.forEach(function (r) {
-    if (!normalizarTexto(datos[r[0]])) throw new Error(r[1] + ' es obligatoria.');
+    if (!normalizarTexto(datos[r[0]])) throw new Error('Falta ' + r[1] + '.');
   });
 
   const fechaLimite = aFecha(datos.fechaLimite);
-  if (!fechaLimite) throw new Error('La fecha límite no es válida. Usa el formato dd/mm/aaaa.');
+  if (!fechaLimite) throw new Error('La fecha límite no es válida (usa el calendario del formulario).');
 
   let prioridad = normalizarTexto(datos.prioridad);
   const prioValida = CFG.PRIORIDADES.filter(function (p) {

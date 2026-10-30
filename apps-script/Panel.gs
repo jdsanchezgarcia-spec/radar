@@ -272,6 +272,13 @@ function apiEjecutar(body) {
       const m = panelCambiarEstado(idA, nuevo, detalle);
       return { ok: true, mensaje: 'Acción ' + m };
     }
+    if (accion === 'eliminarAccion') {
+      // Solo Admin (las acciones verificadas no se pueden eliminar: trazabilidad).
+      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      const idA = normalizarTexto(body.id || datos.id);
+      const mensaje = eliminarAccion(idA);
+      return { ok: true, id: idA, mensaje: mensaje };
+    }
     if (accion === 'notificarVencidos') {
       exigirRol(usuario, [CFG.ROLES.ADMIN]);
       return { ok: true, mensaje: notificarVencidos() };
@@ -395,12 +402,11 @@ function panelNuevaAccion(datos) {
   const id = registrarAccion(datos);
   generarHojaAlertas();
   construirTablero();
-  return { ok: true, mensaje: 'Acción ' + id + ' registrada.' };
+  return id;
 }
 
 function panelNuevoEvento(datos) {
-  const id = registrarEvento(datos);
-  return { ok: true, mensaje: 'Evento ' + id + ' registrado.' };
+  return registrarEvento(datos);
 }
 
 function panelCambiarEstado(idAccion, nuevoEstado, detalle) {
