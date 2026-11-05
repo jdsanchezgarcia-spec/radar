@@ -224,6 +224,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
     <button class="tab on" id="tab-casos" onclick="setVista('casos')">Casos</button>
     <button class="tab" id="tab-planes" onclick="setVista('planes')">Planes de mejora</button>
     <button class="tab" id="tab-seguimientos" onclick="setVista('seguimientos')">Seguimientos</button>
+    <button class="tab" id="btn-mis-casos" style="display:none" onclick="toggleMisCasos()">Mis casos asignados</button>
   </div>
 
   <div class="barra">
@@ -257,7 +258,6 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
       <option value="vencimiento">Por fecha de vencimiento</option>
       <option value="nombre">Por nombre (A-Z)</option>
     </select>
-    <button class="btn sec sm" id="btn-mis-casos" style="display:none" onclick="toggleMisCasos()">Mis casos asignados</button>
     <button class="btn sec sm" onclick="limpiarFiltros()">Limpiar filtros</button>
   </div>
 
@@ -363,8 +363,6 @@ function pintarUsuario(){
     '<button class="btn-salir" onclick="cerrarSesionUI()">Salir</button>';
   var ub=document.getElementById('btn-usuarios-wrap');
   if(ub)ub.style.display=esAdmin()?'':'none';
-  var mb=document.getElementById('btn-mis-casos');
-  if(mb)mb.style.display=SESION?'':'none';
   pintarBotonesVista();
 }
 // Los botones de acción dependen del rol Y de la pestaña abierta.
@@ -382,6 +380,8 @@ function pintarBotonesVista(){
   if(evb)evb.style.display=(VISTA==='planes'&&admin)?'':'none';
   var acb=document.getElementById('btn-accion-wrap');          // + Nueva acción
   if(acb)acb.style.display=(VISTA==='planes'&&admin)?'':'none';
+  var mc=document.getElementById('btn-mis-casos');            // Mis casos asignados (pestaña)
+  if(mc)mc.style.display=(SESION&&VISTA==='casos')?'':'none';
 }
 function irALogin(){
   try{window.top.location.href=LOGIN_PAGE;}catch(e){window.location.href=LOGIN_PAGE;}
@@ -535,6 +535,9 @@ function llenarSel(id,todas,valores){
 }
 function limpiarFiltros(){
   FILTRO_KPI=null;
+  SOLO_MIOS=false;
+  var mc=document.getElementById('btn-mis-casos');
+  if(mc)mc.classList.remove('on');
   document.getElementById('f-periodo').value='1';
   document.getElementById('f-prof').value='';
   document.getElementById('f-eapb').value='';
