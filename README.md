@@ -78,15 +78,27 @@ usuario no necesita la actual.
 
 ## Estado de los seguimientos (casos)
 
-Cada caso tiene un **Estado del seguimiento** con cuatro valores:
-`Pendiente`, `Próximo a vencer`, `Vencido` y `Cerrado`.
+Cada caso tiene un **Estado del seguimiento** que Admin y Profesional cambian
+con dos valores: `Pendiente` y `Cerrado`.
 
-- Admin y Profesional lo cambian desde **Editar** en la ficha del caso, o con
-  los botones **Cerrar seguimiento** / **Reabrir seguimiento** de la tarjeta.
+- Se cambia desde **Editar** en la ficha del caso, o con los botones
+  **Cerrar seguimiento** / **Reabrir seguimiento** de la tarjeta.
 - Los casos **Cerrados** no aparecen en la lista ni en los indicadores de
   ningún rol; se ven con el indicador **Cerrados** o con el filtro de estado
   **Cerrado**, desde donde se pueden reabrir.
 - Un caso cerrado ya no genera alertas ni correos de vencimiento.
+
+**`Próximo a vencer` y `Vencido` no son estados manuales**: no están en el
+desplegable porque los calculan las fechas (fecha de vencimiento y fecha de
+realización). Son los grupos verdes/naranjas/rojos de los indicadores.
+
+| Grupo | Cómo se llega |
+|---|---|
+| Realizado | tiene **fecha de realización** |
+| Próximo a vencer | sin fecha de realización y vence en pocos días |
+| Vencido | sin fecha de realización y la fecha de vencimiento ya pasó |
+| Pendiente | lo que no entra en los anteriores |
+| Cerrado | solo manual, con el botón o el desplegable |
 
 ---
 

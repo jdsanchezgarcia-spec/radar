@@ -34,7 +34,9 @@ function leerCatalogo() {
     if (u.nombre && out.profesionales.indexOf(u.nombre) < 0) out.profesionales.push(u.nombre);
   });
   // Estados básicos siempre disponibles para marcar casos manualmente.
-  ['Pendiente', 'Realizado', 'Próximo a vencer', 'Vencido'].forEach(function (e) {
+  // OJO: "Próximo a vencer" y "Vencido" NO se marcan a mano: los calculan
+  // las fechas, por eso no se ofrecen ni aquí ni en la web.
+  ['Pendiente', 'Realizado', 'Cerrado'].forEach(function (e) {
     if (out.estadosCaso.indexOf(e) < 0) out.estadosCaso.push(e);
   });
   return out;

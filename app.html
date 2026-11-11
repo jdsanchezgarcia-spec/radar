@@ -1040,7 +1040,8 @@ function nombresProfesionales(){
 // Estados que el Administrador y el Profesional pueden elegir para un caso.
 function estadosGestionCaso(){
   var l=(DATOS.estadosGestionCaso&&DATOS.estadosGestionCaso.length)?DATOS.estadosGestionCaso:[];
-  return l.length?l:['Pendiente','Próximo a vencer','Vencido','Cerrado'];
+  // "Próximo a vencer" y "Vencido" no se eligen: se calculan con las fechas.
+  return l.length?l:['Pendiente','Cerrado'];
 }
 function camp(lb,id,tipo,val,full){
   var inp;
