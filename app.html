@@ -48,6 +48,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .kpi.amarillo:before{background:var(--amarillo)}.kpi.amarillo{background:linear-gradient(180deg,#fdf6e2,#fff)}.kpi.amarillo .n,.kpi.amarillo .kpi-ico{color:var(--amarillo)}.kpi.amarillo .kpi-ico{background:#f9edc8;border-color:#eddb9a}
 .kpi.rojo:before{background:var(--rojo)}.kpi.rojo{background:linear-gradient(180deg,#fdefee,#fff)}.kpi.rojo .n,.kpi.rojo .kpi-ico{color:var(--rojo)}.kpi.rojo .kpi-ico{background:#fadcd8;border-color:#f0b4ab}
 .kpi.naranja:before{background:var(--naranja)}.kpi.naranja{background:linear-gradient(180deg,#fdf0e4,#fff)}.kpi.naranja .n,.kpi.naranja .kpi-ico{color:var(--naranja)}.kpi.naranja .kpi-ico{background:#fbdfc7;border-color:#f2c39b}
+.kpi.gris:before{background:var(--gris2)}.kpi.gris{background:linear-gradient(180deg,#f7f9fb,#fff)}.kpi.gris .n,.kpi.gris .kpi-ico{color:var(--gris)}.kpi.gris .kpi-ico{background:#eef2f6;border-color:#dde5ec}
 
 .prof-box{margin:12px 0;padding:13px 16px;border-radius:var(--r2);background:linear-gradient(135deg,#0b3a52,#1a7fb8);color:#fff;display:flex;align-items:center;gap:13px;box-shadow:var(--sh1)}
 .prof-box.vacio{background:var(--sup2);color:var(--gris);border:1px dashed var(--borde2);box-shadow:none}
@@ -170,6 +171,8 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .usuario-bar .u-rol{background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px;font-size:11px}
 .usuario-bar .btn-salir{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px}
 .usuario-bar .btn-salir:hover{background:rgba(255,255,255,.28)}
+.usuario-bar .btn-clave{background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.5);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit}
+.usuario-bar .btn-clave:hover{background:rgba(255,255,255,.26)}
 .visita-item{border:1px solid var(--borde);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--sup)}
 .visita-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer}
 .visita-cab .v-fecha{font-weight:700;color:var(--azul3,#0b3c5d)}
@@ -251,6 +254,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
       <option value="">Estado (todos)</option>
       <option value="realizado">Realizado</option>
       <option value="pendiente">Pendiente</option>
+      <option value="cerrado">Cerrado (solo los cerrados)</option>
     </select>
     <select class="sel" id="f-orden" onchange="render()">
       <option value="reciente" selected>Más recientes primero</option>
@@ -360,6 +364,7 @@ function pintarUsuario(){
   if(!SESION){bar.innerHTML='';return;}
   bar.innerHTML='<span class="u-nombre">'+esc(SESION.nombre||SESION.email)+'</span>'+
     '<span class="u-rol">'+esc(SESION.rol||'')+'</span>'+
+    '<button class="btn-clave" onclick="modalMiClave()">Mi contraseña</button>'+
     '<button class="btn-salir" onclick="cerrarSesionUI()">Salir</button>';
   var ub=document.getElementById('btn-usuarios-wrap');
   if(ub)ub.style.display=esAdmin()?'':'none';
@@ -433,6 +438,7 @@ function renderKpis(){
   h+=kpi('Pendientes',kc.pendientes,'amarillo','pendiente');
   h+=kpi('Próximos a vencer',kc.proximos,'naranja','proximo');
   h+=kpi('Vencidos',kc.vencidos,'rojo','vencido');
+  h+=kpi('Cerrados',kc.cerrados==null?0:kc.cerrados,'gris','cerrado');
   h+=kpi('Planes mejora',(DATOS.eventos||[]).length,'azul','planes');
   document.getElementById('kpis').innerHTML=h;
 }
@@ -476,10 +482,18 @@ function tienePlan(c){
   });
 }
 function filtro(c){
-  if(FILTRO_KPI==='realizado'&&grupoCaso(c)!=='realizado')return false;
-  if(FILTRO_KPI==='vencido'&&grupoCaso(c)!=='vencido')return false;
-  if(FILTRO_KPI==='proximo'&&grupoCaso(c)!=='proximo')return false;
-  if(FILTRO_KPI==='pendiente'&&grupoCaso(c)!=='pendiente')return false;
+  var g=grupoCaso(c);
+  // Los casos CERRADOS no aparecen en ninguna vista (ni en los indicadores),
+  // salvo que se pidan expresamente con el indicador "Cerrados" o con el
+  // filtro de estado "Cerrado". Así se pueden reabrir.
+  var estSel=document.getElementById('f-estado').value;
+  var verCerrados=(FILTRO_KPI==='cerrado'||estSel==='cerrado');
+  if(g==='cerrado'&&!verCerrados)return false;
+  if(g!=='cerrado'&&verCerrados)return false;
+  if(FILTRO_KPI==='realizado'&&g!=='realizado')return false;
+  if(FILTRO_KPI==='vencido'&&g!=='vencido')return false;
+  if(FILTRO_KPI==='proximo'&&g!=='proximo')return false;
+  if(FILTRO_KPI==='pendiente'&&g!=='pendiente')return false;
   if(FILTRO_KPI==='planes'&&!tienePlan(c))return false;
   var q=(document.getElementById('buscar').value||'').toLowerCase();
   if(q){
@@ -899,6 +913,8 @@ function verCasoDesdeSeguimiento(idCaso){
 }
 function grupoCaso(c){
   var est=String(c.estado||'').toLowerCase();
+  // Los cerrados forman su propio grupo y NO se mezclan con los demás.
+  if(/cerrad/.test(est))return'cerrado';
   if(/realizado/.test(est)||c.fechaRealizacion)return'realizado';
   if(/vencid/.test(est))return'vencido';
   if(/proximo|próximo|a vencer/.test(est))return'proximo';
@@ -919,6 +935,7 @@ function clasifCaso(c){
   var sub=tipo?' · '+tipo:'';
   var d=c.dias;
   var g=grupoCaso(c);
+  if(g==='cerrado')return{cls:'gris',texto:'Cerrado',bell:false,bellTxt:''};
   if(g==='realizado')return{cls:'verde',texto:'Realizado'+sub,bell:false,bellTxt:''};
   if(g==='vencido')return{cls:'rojo',texto:'Vencido'+sub,bell:true,bellTxt:(d!==null&&d!==undefined&&d<0)?('vencido hace '+Math.abs(d)+' días'):'marcado como vencido'};
   if(g==='proximo'){
@@ -998,7 +1015,11 @@ function tarjetaCaso(c){
   e+=seguimientosDeCasoHTML(c);
   e+='<div class="accs">';
   if(esAdmin())e+='<button class="btn sec sm" onclick="modalAsignar(\''+esc(c.id)+'\')">Asignar profesional</button>';
-  if(puedeEditarUI(c))e+='<button class="btn sec sm" onclick="modalSeg(\''+esc(c.id)+'\')">Editar</button>';
+  if(puedeEditarUI(c)){
+    if(grupoCaso(c)==='cerrado')e+='<button class="btn sec sm" onclick="cambiarEstadoCaso(\''+esc(c.id)+'\',\'Pendiente\')">Reabrir seguimiento</button>';
+    else e+='<button class="btn sec sm" onclick="cambiarEstadoCaso(\''+esc(c.id)+'\',\'Cerrado\')">Cerrar seguimiento</button>';
+    e+='<button class="btn sec sm" onclick="modalSeg(\''+esc(c.id)+'\')">Editar</button>';
+  }
   if(esAdmin())e+='<button class="btn mal sm" onclick="eliminar(\''+esc(c.id)+'\')">Eliminar</button>';
   e+='</div>';
   e+='</div>';
@@ -1015,6 +1036,11 @@ function abrirModal(html){document.getElementById('modal-cuerpo').innerHTML=html
 function cerrarModal(){document.getElementById('modal').classList.remove('on');}
 function nombresProfesionales(){
   return (DATOS.profesionales||[]).map(function(p){return p&&p.nombre?p.nombre:String(p||'');}).filter(function(x){return x;});
+}
+// Estados que el Administrador y el Profesional pueden elegir para un caso.
+function estadosGestionCaso(){
+  var l=(DATOS.estadosGestionCaso&&DATOS.estadosGestionCaso.length)?DATOS.estadosGestionCaso:[];
+  return l.length?l:['Pendiente','Próximo a vencer','Vencido','Cerrado'];
 }
 function camp(lb,id,tipo,val,full){
   var inp;
@@ -1141,6 +1167,7 @@ function modalSeg(id){
   var h='<h2>Editar caso · '+esc(c.id)+'</h2><p class="ayuda">'+esc(c.caso)+'</p><div class="grid">';
   h+=camp('Nombre del caso','s-caso','text',c.caso,true);
   h+=camp('Cédula','s-cc','text',c.cc);
+  h+=campSelect('Estado del seguimiento','s-estado',estadosGestionCaso(),c.estado||'Pendiente');
   h+=camp('Edad','s-edad','number',c.edad);
   h+=camp('Gestaciones','s-gest','text',c.gestaciones);
   h+=campSelect('Evento (CIE)','s-evento',catLista('eventos',valoresDe('evento')),c.evento);
@@ -1162,15 +1189,14 @@ function modalSeg(id){
   abrirModal(h);
 }
 function guardarSeg(id){
-  var c=(DATOS.casos||[]).filter(function(x){return x.id===id;})[0]||{};
   var d={
     id:id,
     caso:v('s-caso'),cc:v('s-cc'),edad:v('s-edad'),gestaciones:v('s-gest'),evento:v('s-evento'),
     fechaDefuncion:v('s-def'),fechaAsignacion:v('s-asig'),fechaVencimiento:v('s-venc'),fechaRealizacion:v('s-real'),
     periodo:v('s-per'),eapb:v('s-eapb'),ipsPrimerNivel:v('s-ips1'),ipsParto:v('s-ips2'),
     observacion:v('s-obs'),causaMuerte:v('s-causa'),conclusion:v('s-conc'),profesional:v('s-prof'),
-    // El estado del caso no se pide en el formulario: se conserva el actual.
-    intervinientes:v('s-inter'),otrosDatos:v('s-otros'),estado:c.estado||'Pendiente'
+    // Estado del seguimiento: lo elige el Administrador o el Profesional.
+    intervinientes:v('s-inter'),otrosDatos:v('s-otros'),estado:v('s-estado')
   };
   apiPost({accion:'editarSeguimiento',datos:d}).then(function(r){
     if(r&&r.ok){cerrarModal();toast(r.mensaje||'Actualizado.');cargar();}
@@ -1182,6 +1208,15 @@ function eliminar(id){
   apiPost({accion:'eliminarCaso',id:id}).then(function(r){
     if(r&&r.ok){toast(r.mensaje||'Eliminado.');cargar();}
     else toast((r&&r.mensaje)||'No se pudo eliminar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+// Cambia rápido el estado del seguimiento de un caso (Cerrado / Pendiente).
+// Solo escribe el campo "ESTADO SEGUIMIENTO": no toca el resto de la ficha.
+function cambiarEstadoCaso(id,estado){
+  toast('Actualizando estado…');
+  apiPost({accion:'editarSeguimiento',datos:{id:id,estado:estado}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||('Estado actualizado: '+estado+'.')+(estado==='Cerrado'?' Ya no aparece en la lista.':''));cargar();}
+    else toast((r&&r.mensaje)||'No se pudo cambiar el estado.',true);
   }).catch(function(e){toast(e.message,true);});
 }
 function cargarVisitas(id){
@@ -1348,12 +1383,44 @@ function guardarUsuario(){
   }).catch(function(e){toast(e.message,true);});
 }
 function ponerClave(email){
+  // Mi propia cuenta: se usa el modal que además pide la contraseña actual.
+  var mio=(SESION&&SESION.email&&String(SESION.email).toLowerCase()===String(email||'').toLowerCase());
+  if(mio){modalMiClave();return;}
   var nueva=prompt('Nueva contraseña para '+email+' (mínimo 6 caracteres):');
   if(nueva===null)return;
   if(nueva.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
   apiPost({accion:'cambiarClave',datos:{email:email,clave:nueva}}).then(function(r){
     if(r&&r.ok){toast(r.mensaje||'Contraseña actualizada.');cargarUsuariosLista();}
     else toast((r&&r.mensaje)||'No se pudo cambiar la contraseña.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+// ---------------- Mi contraseña (Admin, Profesional y Visita) ----------------
+function modalMiClave(){
+  var h='<h2>Cambiar mi contraseña</h2>'+
+    '<p class="ayuda">Disponible para todos los roles. Se guarda cifrada (nunca en claro) y solo cambia la tuya.</p>'+
+    '<div class="grid">'+
+    camp('Contraseña actual','mc-actual','password','')+
+    camp('Nueva contraseña (mínimo 6 caracteres)','mc-nueva','password','')+
+    camp('Confirmar nueva contraseña','mc-confirmar','password','')+
+    '</div>'+
+    '<div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button>'+
+    '<button class="btn" onclick="guardarMiClave()">Guardar contraseña</button></div>';
+  abrirModal(h);
+  var p=document.getElementById('mc-actual');if(p)p.focus();
+}
+function guardarMiClave(){
+  var actual=v('mc-actual'),nueva=v('mc-nueva'),confirmar=v('mc-confirmar');
+  if(!actual){toast('Escribe tu contraseña actual.',true);return;}
+  if(nueva.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
+  if(nueva!==confirmar){toast('Las contraseñas nuevas no coinciden.',true);return;}
+  var email=(SESION&&SESION.email)||(DATOS.usuario&&DATOS.usuario.email)||'';
+  if(!email){toast('No se pudo identificar tu usuario. Vuelve a iniciar sesión.',true);return;}
+  apiPost({accion:'cambiarClave',datos:{email:email,actual:actual,clave:nueva}}).then(function(r){
+    if(r&&r.ok){
+      cerrarModal();
+      toast(r.mensaje||'Contraseña actualizada.');
+      var f=document.getElementById('mc-actual');if(f)f.value='';
+    }else toast((r&&r.mensaje)||'No se pudo cambiar la contraseña.',true);
   }).catch(function(e){toast(e.message,true);});
 }
 function quitarUsuario(email){

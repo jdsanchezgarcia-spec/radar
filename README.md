@@ -68,6 +68,26 @@ git push -u origin main
 Después, desde el panel: **Usuarios → + Agregar usuario** o
 **Usuarios → Clave** para restablecerla.
 
+**Cambio propio de contraseña:** cualquier rol (Admin, Profesional y Visita)
+puede cambiar la suya desde el botón **Mi contraseña** de la barra superior.
+Pide la contraseña actual y la verifica en el servidor antes de guardar la
+nueva (mínimo 6 caracteres). El administrador que restablece la de otro
+usuario no necesita la actual.
+
+---
+
+## Estado de los seguimientos (casos)
+
+Cada caso tiene un **Estado del seguimiento** con cuatro valores:
+`Pendiente`, `Próximo a vencer`, `Vencido` y `Cerrado`.
+
+- Admin y Profesional lo cambian desde **Editar** en la ficha del caso, o con
+  los botones **Cerrar seguimiento** / **Reabrir seguimiento** de la tarjeta.
+- Los casos **Cerrados** no aparecen en la lista ni en los indicadores de
+  ningún rol; se ven con el indicador **Cerrados** o con el filtro de estado
+  **Cerrado**, desde donde se pueden reabrir.
+- Un caso cerrado ya no genera alertas ni correos de vencimiento.
+
 ---
 
 ## Notas

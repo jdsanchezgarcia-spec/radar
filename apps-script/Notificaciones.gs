@@ -1,6 +1,7 @@
 // ---------------- Notificaciones de casos vencidos ----------------
 function casosVencidos() {
   return listaCasos().filter(function (c) {
+    if (esCasoCerrado(c)) return false; // los cerrados ya no se notifican
     return !c.fechaRealizacion && c.dias !== null && c.dias !== undefined && c.dias < 0;
   });
 }

@@ -47,7 +47,11 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .kpi.verde:before{background:var(--verde)}.kpi.verde{background:linear-gradient(180deg,#eefaf3,#fff)}.kpi.verde .n,.kpi.verde .kpi-ico{color:var(--verde)}.kpi.verde .kpi-ico{background:#dff4e9;border-color:#b6e5c9}
 .kpi.amarillo:before{background:var(--amarillo)}.kpi.amarillo{background:linear-gradient(180deg,#fdf6e2,#fff)}.kpi.amarillo .n,.kpi.amarillo .kpi-ico{color:var(--amarillo)}.kpi.amarillo .kpi-ico{background:#f9edc8;border-color:#eddb9a}
 .kpi.rojo:before{background:var(--rojo)}.kpi.rojo{background:linear-gradient(180deg,#fdefee,#fff)}.kpi.rojo .n,.kpi.rojo .kpi-ico{color:var(--rojo)}.kpi.rojo .kpi-ico{background:#fadcd8;border-color:#f0b4ab}
+.kpi.gris:before{background:#9aa3ad}.kpi.gris{background:linear-gradient(180deg,#f2f4f6,#fff)}.kpi.gris .n,.kpi.gris .kpi-ico{color:#5b6672}.kpi.gris .kpi-ico{background:#e6e9ed;border-color:#d3d8de}
+.btn-clave{background:var(--sup);border:1px solid var(--borde);border-radius:9px;height:38px;padding:0 12px;cursor:pointer;font-weight:700;font-size:.82rem;color:var(--texto);transition:background var(--tr),border-color var(--tr)}
+.btn-clave:hover{background:#eef1f4;border-color:#c9d0d8}
 .kpi.naranja:before{background:var(--naranja)}.kpi.naranja{background:linear-gradient(180deg,#fdf0e4,#fff)}.kpi.naranja .n,.kpi.naranja .kpi-ico{color:var(--naranja)}.kpi.naranja .kpi-ico{background:#fbdfc7;border-color:#f2c39b}
+.kpi.gris:before{background:var(--gris2)}.kpi.gris{background:linear-gradient(180deg,#f7f9fb,#fff)}.kpi.gris .n,.kpi.gris .kpi-ico{color:var(--gris)}.kpi.gris .kpi-ico{background:#eef2f6;border-color:#dde5ec}
 
 .prof-box{margin:12px 0;padding:13px 16px;border-radius:var(--r2);background:linear-gradient(135deg,#0b3a52,#1a7fb8);color:#fff;display:flex;align-items:center;gap:13px;box-shadow:var(--sh1)}
 .prof-box.vacio{background:var(--sup2);color:var(--gris);border:1px dashed var(--borde2);box-shadow:none}
@@ -166,6 +170,8 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .usuario-bar .u-rol{background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px;font-size:11px}
 .usuario-bar .btn-salir{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px}
 .usuario-bar .btn-salir:hover{background:rgba(255,255,255,.28)}
+.usuario-bar .btn-clave{background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.5);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit}
+.usuario-bar .btn-clave:hover{background:rgba(255,255,255,.26)}
 .visita-item{border:1px solid var(--borde);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--sup)}
 .visita-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer}
 .visita-cab .v-fecha{font-weight:700;color:var(--azul3,#0b3c5d)}
@@ -236,6 +242,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
       <option value="">Estado (todos)</option>
       <option value="realizado">Realizado</option>
       <option value="pendiente">Pendiente</option>
+      <option value="cerrado">Cerrado (solo los cerrados)</option>
     </select>
     <select class="sel" id="f-orden" onchange="render()">
       <option value="reciente" selected>Más recientes primero</option>
@@ -320,6 +327,7 @@ function pintarUsuario(){
   if(!SESION){bar.innerHTML='';return;}
   bar.innerHTML='<span class="u-nombre">'+esc(SESION.nombre||SESION.email)+'</span>'+
     '<span class="u-rol">'+esc(SESION.rol||'')+'</span>'+
+    '<button class="btn-clave" onclick="modalMiClave()">Mi contraseña</button>'+
     '<button class="btn-salir" onclick="cerrarSesionUI()">Salir</button>';
   var nb=document.getElementById('btn-nuevo-wrap');
   if(nb)nb.style.display=esAdmin()?'':'none';
@@ -371,6 +379,7 @@ function renderKpis(){
   h+=kpi('Pendientes',kc.pendientes,'amarillo','pendiente');
   h+=kpi('Próximos a vencer',kc.proximos,'naranja','proximo');
   h+=kpi('Vencidos',kc.vencidos,'rojo','vencido');
+  h+=kpi('Cerrados',kc.cerrados==null?0:kc.cerrados,'gris','cerrado');
   h+=kpi('Planes mejora',(DATOS.eventos||[]).length,'azul','planes');
   document.getElementById('kpis').innerHTML=h;
 }
@@ -397,11 +406,23 @@ function tienePlan(c){
     return i&&(i.indexOf(e)>=0||e.indexOf(i)>=0);
   });
 }
+// ¿El caso está marcado como "Cerrado" en Estado del seguimiento?
+function esCerradoCaso(c){
+  return /cerrad/i.test(String((c&&c.estado)||''));
+}
 function filtro(c){
-  if(FILTRO_KPI==='realizado'&&!c.fechaRealizacion)return false;
-  if(FILTRO_KPI==='vencido'&&(c.fechaRealizacion||c.dias===null||c.dias>=0))return false;
-  if(FILTRO_KPI==='proximo'&&(c.fechaRealizacion||c.dias===null||c.dias<0||c.dias>15))return false;
-  if(FILTRO_KPI==='pendiente'&&(c.fechaRealizacion||(c.dias!==null&&c.dias<=15)))return false;
+  // Los casos CERRADOS no aparecen en ninguna vista (ni en los indicadores),
+  // salvo que se pidan expresamente con el indicador "Cerrados" o con el
+  // filtro de estado "Cerrado". Así se pueden reabrir.
+  var estSel=document.getElementById('f-estado').value;
+  var verCerrados=(FILTRO_KPI==='cerrado'||estSel==='cerrado');
+  var cerrado=esCerradoCaso(c);
+  if(cerrado&&!verCerrados)return false;
+  if(!cerrado&&verCerrados)return false;
+  if(FILTRO_KPI==='realizado'&&(cerrado||!c.fechaRealizacion))return false;
+  if(FILTRO_KPI==='vencido'&&(cerrado||c.fechaRealizacion||c.dias===null||c.dias>=0))return false;
+  if(FILTRO_KPI==='proximo'&&(cerrado||c.fechaRealizacion||c.dias===null||c.dias<0||c.dias>15))return false;
+  if(FILTRO_KPI==='pendiente'&&(cerrado||c.fechaRealizacion||(c.dias!==null&&c.dias<=15)))return false;
   if(FILTRO_KPI==='planes'&&!tienePlan(c))return false;
   var q=(document.getElementById('buscar').value||'').toLowerCase();
   if(q){
@@ -545,7 +566,7 @@ function tarjetaCaso(c){
   e+='<span class="et '+claseEstado(est)+'">'+esc(est)+'</span>';
   if(c.alerta)e+='<span class="et '+claseEt(c.alerta)+'">'+esc(c.alerta)+'</span>';
   e+='<span class="et azul">'+esc(c.id)+'</span>';
-  e+='<span class="et '+(c.fechaRealizacion?'verde':'gris')+'">'+(c.fechaRealizacion?'Realizado':'Pendiente')+'</span>';
+  e+='<span class="et '+(esCerradoCaso(c)?'gris':(c.fechaRealizacion?'verde':'gris'))+'">'+(esCerradoCaso(c)?'Cerrado':(c.fechaRealizacion?'Realizado':'Pendiente'))+'</span>';
   e+='</div>';
   e+='<div class="titulo">'+esc(c.caso)+'</div>';
   e+=c.profesional
@@ -561,7 +582,11 @@ function tarjetaCaso(c){
      (puedeEditarUI(c)?'<div style="margin-top:10px"><button class="btn sec sm" onclick="modalVisita(\''+esc(c.id)+'\')">+ Agregar visita</button></div>':'')+'</div>';
   e+='<div class="accs">';
   if(esAdmin())e+='<button class="btn sec sm" onclick="modalAsignar(\''+esc(c.id)+'\')">Asignar profesional</button>';
-  if(puedeEditarUI(c))e+='<button class="btn sec sm" onclick="modalSeg(\''+esc(c.id)+'\')">Editar</button>';
+  if(puedeEditarUI(c)){
+    if(esCerradoCaso(c))e+='<button class="btn sec sm" onclick="cambiarEstadoCaso(\''+esc(c.id)+'\',\'Pendiente\')">Reabrir seguimiento</button>';
+    else e+='<button class="btn sec sm" onclick="cambiarEstadoCaso(\''+esc(c.id)+'\',\'Cerrado\')">Cerrar seguimiento</button>';
+    e+='<button class="btn sec sm" onclick="modalSeg(\''+esc(c.id)+'\')">Editar</button>';
+  }
   if(esAdmin())e+='<button class="btn mal sm" onclick="eliminar(\''+esc(c.id)+'\')">Eliminar</button>';
   e+='</div>';
   e+='</div>';
@@ -575,6 +600,11 @@ function puedeEditarUI(c){
 
 function abrirModal(html){document.getElementById('modal-cuerpo').innerHTML=html;document.getElementById('modal').classList.add('on');}
 function cerrarModal(){document.getElementById('modal').classList.remove('on');}
+// Estados que el Administrador y el Profesional pueden elegir para un caso.
+function estadosGestionCaso(){
+  var l=(DATOS.estadosGestionCaso&&DATOS.estadosGestionCaso.length)?DATOS.estadosGestionCaso:[];
+  return l.length?l:['Pendiente','Próximo a vencer','Vencido','Cerrado'];
+}
 function camp(lb,id,tipo,val,full){
   var inp;
   if(tipo==='textarea')inp='<textarea id="'+id+'">'+esc(val||'')+'</textarea>';
@@ -616,7 +646,7 @@ function modalNuevo(){
   var h='<h2>Nuevo caso</h2><p class="ayuda">Los campos con * son obligatorios.</p><div class="grid">';
   h+=camp('Nombre del caso *','n-caso','text','',true);
   h+=camp('Cédula *','n-cc','text');
-  h+=campSelect('Estado del seguimiento','n-estado',DATOS.estadosCaso||[],(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
+  h+=campSelect('Estado del seguimiento','n-estado',estadosGestionCaso(),'Pendiente');
   h+=camp('Edad','n-edad','number');
   h+=camp('Gestaciones','n-gest','text');
   h+=campSelect('Evento (CIE)','n-evento',valoresDe('evento'),'');
@@ -697,7 +727,7 @@ function modalSeg(id){
   var h='<h2>Editar caso · '+esc(c.id)+'</h2><p class="ayuda">'+esc(c.caso)+'</p><div class="grid">';
   h+=camp('Nombre del caso','s-caso','text',c.caso,true);
   h+=camp('Cédula','s-cc','text',c.cc);
-  h+=campSelect('Estado del seguimiento','s-estado',DATOS.estadosCaso||[],c.estado||(DATOS.estadosCaso&&DATOS.estadosCaso[0]||'Pendiente'));
+  h+=campSelect('Estado del seguimiento','s-estado',estadosGestionCaso(),c.estado||'Pendiente');
   h+=camp('Edad','s-edad','number',c.edad);
   h+=camp('Gestaciones','s-gest','text',c.gestaciones);
   h+=campSelect('Evento (CIE)','s-evento',valoresDe('evento'),c.evento);
@@ -731,6 +761,15 @@ function guardarSeg(id){
   apiPost({accion:'editarSeguimiento',datos:d}).then(function(r){
     if(r&&r.ok){cerrarModal();toast(r.mensaje||'Actualizado.');cargar();}
     else toast((r&&r.mensaje)||'No se pudo actualizar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+// Cambia rápido el estado del seguimiento de un caso (Cerrado / Pendiente).
+// Solo escribe el campo "ESTADO SEGUIMIENTO": no toca el resto de la ficha.
+function cambiarEstadoCaso(id,estado){
+  toast('Actualizando estado…');
+  apiPost({accion:'editarSeguimiento',datos:{id:id,estado:estado}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||('Estado actualizado: '+estado+'.')+(estado==='Cerrado'?' Ya no aparece en la lista.':''));cargar();}
+    else toast((r&&r.mensaje)||'No se pudo cambiar el estado.',true);
   }).catch(function(e){toast(e.message,true);});
 }
 function eliminar(id){
@@ -904,12 +943,44 @@ function guardarUsuario(){
   }).catch(function(e){toast(e.message,true);});
 }
 function ponerClave(email){
+  // Mi propia cuenta: se usa el modal que además pide la contraseña actual.
+  var mio=(SESION&&SESION.email&&String(SESION.email).toLowerCase()===String(email||'').toLowerCase());
+  if(mio){modalMiClave();return;}
   var nueva=prompt('Nueva contraseña para '+email+' (mínimo 6 caracteres):');
   if(nueva===null)return;
   if(nueva.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
   apiPost({accion:'cambiarClave',datos:{email:email,clave:nueva}}).then(function(r){
     if(r&&r.ok){toast(r.mensaje||'Contraseña actualizada.');cargarUsuariosLista();}
     else toast((r&&r.mensaje)||'No se pudo cambiar la contraseña.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+// ---------------- Mi contraseña (Admin, Profesional y Visita) ----------------
+function modalMiClave(){
+  var h='<h2>Cambiar mi contraseña</h2>'+
+    '<p class="ayuda">Disponible para todos los roles. Se guarda cifrada (nunca en claro) y solo cambia la tuya.</p>'+
+    '<div class="grid">'+
+    camp('Contraseña actual','mc-actual','password','')+
+    camp('Nueva contraseña (mínimo 6 caracteres)','mc-nueva','password','')+
+    camp('Confirmar nueva contraseña','mc-confirmar','password','')+
+    '</div>'+
+    '<div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button>'+
+    '<button class="btn" onclick="guardarMiClave()">Guardar contraseña</button></div>';
+  abrirModal(h);
+  var p=document.getElementById('mc-actual');if(p)p.focus();
+}
+function guardarMiClave(){
+  var actual=v('mc-actual'),nueva=v('mc-nueva'),confirmar=v('mc-confirmar');
+  if(!actual){toast('Escribe tu contraseña actual.',true);return;}
+  if(nueva.length<6){toast('La contraseña debe tener al menos 6 caracteres.',true);return;}
+  if(nueva!==confirmar){toast('Las contraseñas nuevas no coinciden.',true);return;}
+  var email=(SESION&&SESION.email)||(DATOS.usuario&&DATOS.usuario.email)||'';
+  if(!email){toast('No se pudo identificar tu usuario. Vuelve a iniciar sesión.',true);return;}
+  apiPost({accion:'cambiarClave',datos:{email:email,actual:actual,clave:nueva}}).then(function(r){
+    if(r&&r.ok){
+      cerrarModal();
+      toast(r.mensaje||'Contraseña actualizada.');
+      var f=document.getElementById('mc-actual');if(f)f.value='';
+    }else toast((r&&r.mensaje)||'No se pudo cambiar la contraseña.',true);
   }).catch(function(e){toast(e.message,true);});
 }
 function quitarUsuario(email){

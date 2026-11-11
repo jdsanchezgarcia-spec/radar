@@ -36,6 +36,12 @@ const CFG = {
 
   ESTADOS_CASO: ['Pendiente', 'En proceso', 'Gestionado', 'Cerrado'],
 
+  // Estado de gestión del CASO (columna "ESTADO SEGUIMIENTO" de la hoja Casos).
+  // Lo cambian el Administrador y el Profesional desde la web.
+  // Un caso en "Cerrado" NO aparece en la lista ni en los indicadores
+  // (solo se ve con el filtro "Cerrado" para poder reabrirlo).
+  ESTADOS_GESTION_CASO: ['Pendiente', 'Próximo a vencer', 'Vencido', 'Cerrado'],
+
   // Estados de un COMPROMISO de seguimiento (hoja Seguimientos).
   // Vienen del Excel "Seguimiento_UDA_Completo": CUMPLE / PARCIAL / NO CUMPLE.
   ESTADOS_SEGUIMIENTO: ['CUMPLE', 'PARCIAL', 'NO CUMPLE'],

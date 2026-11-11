@@ -156,18 +156,29 @@ function asignarClaveInicial(email, clave) {
 
 /**
  * Cambio de contraseña desde el panel:
- *  - el administrador puede cambiar la de cualquiera
- *  - el profesional solo la suya
+ *  - el administrador puede cambiar la de cualquiera (sin escribir la actual)
+ *  - cada usuario cambia la SUYA, escribiendo primero la contraseña actual
  */
 function cambiarClaveUsuario(datos, usuario) {
   if (!usuario) throw new Error('Debes iniciar sesión.');
   const objetivo = normalizarTexto(datos && datos.email).toLowerCase();
   if (!objetivo) throw new Error('Debes indicar el usuario.');
-  if (!esAdmin(usuario) && normalizarTexto(usuario.email) !== objetivo) {
+  const soyYo = normalizarTexto(usuario.email).toLowerCase() === objetivo;
+  if (!esAdmin(usuario) && !soyYo) {
     throw new Error('Solo puedes cambiar tu propia contraseña.');
   }
   const reg = usuarioPorEmail(objetivo);
   if (!reg) throw new Error('No existe el usuario ' + objetivo + '.');
+  if (soyYo) {
+    const actual = String((datos && datos.actual) || '');
+    const hash = String(reg['Hash'] || '');
+    if (hash) {
+      if (!actual) throw new Error('Escribe tu contraseña actual.');
+      if (hashClave(actual, String(reg['Sal'] || '')) !== hash) {
+        throw new Error('La contraseña actual no es correcta.');
+      }
+    }
+  }
   guardarClave(reg, datos.clave);
   return 'Contraseña actualizada para ' + objetivo + '.';
 }

@@ -367,6 +367,7 @@ function panelDatos(sesion) {
     semanasVencimiento: semanasVencimiento(),
     estados: [CFG.ESTADOS.PENDIENTE, CFG.ESTADOS.EJECUCION, CFG.ESTADOS.REPORTADA, CFG.ESTADOS.VERIFICADA, CFG.ESTADOS.RECHAZADA],
     estadosCaso: CFG.ESTADOS_CASO,
+    estadosGestionCaso: CFG.ESTADOS_GESTION_CASO,
     estadosSeguimiento: CFG.ESTADOS_SEGUIMIENTO,
     ipsPais: COL.IPS_PAIS,
     catalogos: leerCatalogo(),

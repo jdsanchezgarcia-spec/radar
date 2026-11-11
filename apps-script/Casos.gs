@@ -206,11 +206,22 @@ function eliminarCaso(id) {
   return id;
 }
 
+/** ¿El caso está marcado como "Cerrado" en la columna ESTADO SEGUIMIENTO? */
+function esCasoCerrado(regOLista) {
+  if (!regOLista) return false;
+  const estado = regOLista.estado !== undefined
+    ? regOLista.estado
+    : regOLista['ESTADO SEGUIMIENTO'];
+  return normalizarTexto(estado).toLowerCase() === 'cerrado';
+}
+
 function kpiCasos() {
   const filas = leerTabla(CFG.HOJAS.CASOS);
-  const kpi = { total: filas.length, realizados: 0, pendientes: 0, vencidos: 0, proximos: 0 };
+  const kpi = { total: filas.length, realizados: 0, pendientes: 0, vencidos: 0, proximos: 0, cerrados: 0 };
   const diasAlerta = diasAlertaVencimiento();
   filas.forEach(function (reg) {
+    // Los casos cerrados solo se cuentan en "Cerrados".
+    if (esCasoCerrado(reg)) { kpi.cerrados++; return; }
     if (aFecha(reg['FECHA DE REALIZACIÓN'])) { kpi.realizados++; return; }
     const dr = diasRestantes(reg['FECHA DE VENCIMIENTO']);
     if (dr !== null && dr < 0) { kpi.vencidos++; return; }
@@ -221,8 +232,10 @@ function kpiCasos() {
 }
 
 function kpiDesdeLista(casos) {
-  const kpi = { total: casos.length, realizados: 0, pendientes: 0, vencidos: 0, proximos: 0 };
+  const kpi = { total: casos.length, realizados: 0, pendientes: 0, vencidos: 0, proximos: 0, cerrados: 0 };
   casos.forEach(function (c) {
+    // Un caso cerrado no entra en ningún otro grupo (ni en el de vencidos).
+    if (esCasoCerrado(c)) { kpi.cerrados++; return; }
     const est = String(c.estado || '').toLowerCase();
     if (/realizado/.test(est) || c.fechaRealizacion) { kpi.realizados++; return; }
     if (/vencid/.test(est)) { kpi.vencidos++; return; }
@@ -238,6 +251,7 @@ function kpiDesdeLista(casos) {
 function filasAlertasDeCasos() {
   const filas = [];
   leerTabla(CFG.HOJAS.CASOS).forEach(function (reg) {
+    if (esCasoCerrado(reg)) return; // un caso cerrado ya no genera alertas
     const alerta = alertaDeCaso(reg);
     if (!alerta) return;
     const limite = aFecha(reg['FECHA DE VENCIMIENTO']);
