@@ -8,7 +8,6 @@ function apiLeer(accion, p) {
   if (accion === 'datos' || accion === 'panel') {
     exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA]);
     asegurarCatalogos(); // crea la hoja Catálogos en la primera carga si no existe
-    asegurarColumnaPlan(); // asegura la columna ID_Caso de la hoja Planes
     try {
       return panelDatos(sesion);
     } catch (err) {
@@ -180,6 +179,7 @@ function apiEjecutar(body) {
       // "＋ Plan de mejora" de la fila del caso).
       exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
       if (!esAdmin(usuario)) exigirCasoPropio(usuario, datos.idCaso, 'crear planes de mejora');
+      asegurarColumnaPlan(); // por si llega la petición sin pasar antes por panelDatos
       const id = panelNuevaAccion(datos);
       return { ok: true, id: id, mensaje: 'Acción ' + id + ' registrada.' };
     }
@@ -320,6 +320,7 @@ function abrirPanel() {
 }
 
 function panelDatos(sesion) {
+  asegurarColumnaPlan(); // la hoja Planes puede ser anterior a la columna ID_Caso
   const acciones = leerTabla(CFG.HOJAS.PLANES);
   const kpi = calcularKpis(acciones);
   const lista = [];
