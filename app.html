@@ -234,6 +234,7 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
     <input class="buscar" id="buscar" placeholder="Buscar por nombre, cédula, EAPB, profesional..." oninput="render()">
     <button class="btn" onclick="render()">Buscar</button>
     <span id="btn-nuevo-wrap"><button class="btn sec" onclick="modalNuevo()">+ Nuevo caso</button></span>
+    <span id="btn-export-wrap" style="display:none"><button class="btn sec" onclick="exportarCasos()">⬇ Exportar Excel</button></span>
     <span id="btn-nuevo-seg-wrap" style="display:none"><button class="btn sec" onclick="modalNuevoSeguimiento()">+ Nuevo seguimiento</button></span>
     <span id="btn-importar-seg-wrap" style="display:none"><button class="btn sec" onclick="importarSeguimientosUI()">⇪ Importar de la hoja</button></span>
     <span id="btn-evento-wrap" style="display:none"><button class="btn sec" onclick="modalNuevoEvento()">+ Nuevo evento</button></span>
@@ -385,6 +386,8 @@ function pintarBotonesVista(){
   if(evb)evb.style.display=(VISTA==='planes'&&admin)?'':'none';
   var acb=document.getElementById('btn-accion-wrap');          // + Nueva acción
   if(acb)acb.style.display=(VISTA==='planes'&&admin)?'':'none';
+  var exb=document.getElementById('btn-export-wrap');          // ⬇ Exportar a Excel (Casos)
+  if(exb)exb.style.display=(VISTA==='casos'&&(admin||prof))?'':'none';
   var mc=document.getElementById('btn-mis-casos');            // Mis casos asignados (pestaña)
   if(mc)mc.style.display=(SESION&&VISTA==='casos')?'':'none';
 }
@@ -630,6 +633,173 @@ function renderCasos(){
   casos.forEach(function(c){h+=filaCaso(c);});
   h+='</div>';
   document.getElementById('v-casos').innerHTML=h;
+}
+// ---------------- Exportar casos a Excel (.xlsx) ----------------
+// El archivo se arma en el navegador (ZIP + OOXML), sin librerías externas.
+// Alcance: lo que se ve con los filtros activos. El Profesional SIEMPRE queda
+// limitado a SUS casos, aunque el filtro de profesional apunte a otro.
+function casosExportables(){
+  // El Profesional solo puede exportar SUS casos: aunque el filtro de
+  // profesional apunte a otro, ese filtro se ignora para él.
+  var adm=esAdmin();
+  var sel=document.getElementById('f-prof');
+  var profPrev=sel?sel.value:'';
+  if(!adm&&sel)sel.value='';
+  var lista=(DATOS.casos||[]).filter(filtro);
+  if(!adm&&sel)sel.value=profPrev;
+  var yo=normNombreSeg(SESION&&SESION.nombre);
+  if(!adm){
+    lista=yo?lista.filter(function(c){return normNombreSeg(c.profesional)===yo;}):[];
+  }else if(SOLO_MIOS&&yo){
+    lista=lista.filter(function(c){return normNombreSeg(c.profesional)===yo;});
+  }
+  lista.sort(ordenar);
+  return lista;
+}
+function estadoExportCaso(c){return clasifCaso(c).texto;}
+var COLS_EXPORT=[
+  ['ID','id'],['CASO','caso'],['CÉDULA','cc'],['EDAD','edad'],['GESTACIONES','gestaciones'],['EVENTO','evento'],
+  ['FECHA DE DEFUNCIÓN','fechaDefuncion'],['FECHA DE ASIGNACIÓN','fechaAsignacion'],['FECHA DE VENCIMIENTO','fechaVencimiento'],['FECHA DE REALIZACIÓN','fechaRealizacion'],
+  ['PERÍODO EPIDEMIOLÓGICO','periodo'],['EAPB','eapb'],['IPS DE PRIMER NIVEL','ipsPrimerNivel'],['IPS DE ATENCIÓN DEL PARTO','ipsParto'],
+  ['OBSERVACIÓN','observacion'],['CAUSA DE MUERTE','causaMuerte'],['CONCLUSIÓN UNIDAD DE ANÁLISIS','conclusion'],
+  ['PROFESIONAL ASIGNADO','profesional'],['INTERVINIENTES EN LA UA','intervinientes'],['SEGUIMIENTO','seguimiento'],['OTROS DATOS RELEVANTES','otrosDatos'],
+  ['ESTADO SEGUIMIENTO','estado'],['ESTADO (calculado)','_estado'],['DÍAS RESTANTES','dias'],['ALERTA','alerta'],['DETALLE ALERTA','detalleAlerta']
+];
+function _p2(n){return(n<10?'0':'')+n;}
+function exportarCasos(){
+  var lista=casosExportables();
+  if(!lista.length){toast('No hay casos que coincidan con los filtros para exportar.',true);return;}
+  var enc=COLS_EXPORT.map(function(c){return c[0];});
+  var filas=lista.map(function(c){
+    return COLS_EXPORT.map(function(col){
+      if(col[1]==='_estado')return estadoExportCaso(c);
+      var v=c[col[1]];
+      return(v===null||v===undefined)?'':v;
+    });
+  });
+  var alcance='';
+  try{alcance=document.getElementById('f-prof').value||'';}catch(e){}
+  if(!esAdmin())alcance=String((SESION&&SESION.nombre)||'');
+  if(!alcance)alcance=esAdmin()?'todos':'mios';
+  var d=new Date();
+  var nom='Casos_'+String(alcance).replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-')+'_'+d.getFullYear()+'-'+_p2(d.getMonth()+1)+'-'+_p2(d.getDate())+'.xlsx';
+  _xlsxDescargar(nom,'Casos',enc,filas);
+  toast('Se descargó '+nom+' ('+lista.length+' caso'+(lista.length===1?'':'s')+').');
+}
+function _xml(s){
+  return String(s==null?'':s)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function _colLetra(i){
+  var s='';i=i+1;
+  while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}
+  return s;
+}
+function _utf8(s){
+  s=String(s==null?'':s);
+  var out=[],i,c;
+  for(i=0;i<s.length;i++){
+    c=s.charCodeAt(i);
+    if(c<0x80)out.push(c);
+    else if(c<0x800)out.push(0xC0|(c>>6),0x80|(c&63));
+    else if(c>=0xD800&&c<=0xDBFF&&i+1<s.length){
+      var c2=s.charCodeAt(++i);
+      var cp=0x10000+((c-0xD800)<<10)+(c2-0xDC00);
+      out.push(0xF0|(cp>>18),0x80|((cp>>12)&63),0x80|((cp>>6)&63),0x80|(cp&63));
+    }else out.push(0xE0|(c>>12),0x80|((c>>6)&63),0x80|(c&63));
+  }
+  return out;
+}
+function _crc32(b){
+  if(!_crc32.t){
+    var t=[],n,k,c;
+    for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}
+    _crc32.t=t;
+  }
+  var crc=0xFFFFFFFF;
+  for(var i=0;i<b.length;i++)crc=(crc>>>8)^_crc32.t[(crc^b[i])&255];
+  return(crc^0xFFFFFFFF)>>>0;
+}
+function _zipCrear(archivos){
+  var partes=[],centro=[],offset=0;
+  var d=new Date();
+  var hora=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF;
+  var fch=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  archivos.forEach(function(a){
+    var nom=_utf8(a.nom),dat=a.datos,crc=_crc32(dat),len=dat.length;
+    var cab=new Uint8Array(30+nom.length),dv=new DataView(cab.buffer);
+    dv.setUint32(0,0x04034b50,true);
+    dv.setUint16(4,20,true);dv.setUint16(6,0,true);dv.setUint16(8,0,true);
+    dv.setUint16(10,hora,true);dv.setUint16(12,fch,true);
+    dv.setUint32(14,crc,true);dv.setUint32(18,len,true);dv.setUint32(22,len,true);
+    dv.setUint16(26,nom.length,true);dv.setUint16(28,0,true);
+    cab.set(nom,30);
+    partes.push(cab,dat);
+    var cen=new Uint8Array(46+nom.length),cv=new DataView(cen.buffer);
+    cv.setUint32(0,0x02014b50,true);
+    cv.setUint16(4,20,true);cv.setUint16(6,20,true);
+    cv.setUint16(8,0,true);cv.setUint16(10,0,true);
+    cv.setUint16(12,hora,true);cv.setUint16(14,fch,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,len,true);cv.setUint32(24,len,true);
+    cv.setUint16(28,nom.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);
+    cv.setUint16(34,0,true);cv.setUint16(36,0,true);
+    cv.setUint32(38,0,true);cv.setUint32(42,offset,true);
+    cen.set(nom,46);
+    centro.push(cen);
+    offset+=cab.length+len;
+  });
+  var cdSize=0;
+  centro.forEach(function(c){cdSize+=c.length;});
+  var fin=new Uint8Array(22),fv=new DataView(fin.buffer);
+  fv.setUint32(0,0x06054b50,true);
+  fv.setUint16(4,0,true);fv.setUint16(6,0,true);
+  fv.setUint16(8,archivos.length,true);fv.setUint16(10,archivos.length,true);
+  fv.setUint32(12,cdSize,true);fv.setUint32(16,offset,true);fv.setUint16(20,0,true);
+  var todos=partes.concat(centro,[fin]),total=0;
+  todos.forEach(function(p){total+=p.length;});
+  var out=new Uint8Array(total),pos=0;
+  todos.forEach(function(p){out.set(p,pos);pos+=p.length;});
+  return out;
+}
+function _xmlHoja(enc,filas){
+  var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  x+='<row r="1">';
+  enc.forEach(function(t,i){x+='<c r="'+_colLetra(i)+'1" s="1" t="inlineStr"><is><t xml:space="preserve">'+_xml(t)+'</t></is></c>';});
+  x+='</row>';
+  filas.forEach(function(f,ri){
+    var r=ri+2;
+    x+='<row r="'+r+'">';
+    f.forEach(function(v,i){
+      var ref=_colLetra(i)+r;
+      if(typeof v==='number'&&isFinite(v))x+='<c r="'+ref+'"><v>'+v+'</v></c>';
+      else x+='<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+_xml(v)+'</t></is></c>';
+    });
+    x+='</row>';
+  });
+  return x+'</sheetData></worksheet>';
+}
+function _xlsxDescargar(nombre,hoja,enc,filas){
+  var tipos='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  var relsRaiz='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  var libro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="'+_xml(hoja||'Casos')+'" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  var relsLibro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  var estilos='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  var arr=[
+    {nom:'[Content_Types].xml',datos:new Uint8Array(_utf8(tipos))},
+    {nom:'_rels/.rels',datos:new Uint8Array(_utf8(relsRaiz))},
+    {nom:'xl/workbook.xml',datos:new Uint8Array(_utf8(libro))},
+    {nom:'xl/_rels/workbook.xml.rels',datos:new Uint8Array(_utf8(relsLibro))},
+    {nom:'xl/styles.xml',datos:new Uint8Array(_utf8(estilos))},
+    {nom:'xl/worksheets/sheet1.xml',datos:new Uint8Array(_utf8(_xmlHoja(enc,filas)))}
+  ];
+  var blob=new Blob([_zipCrear(arr)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){try{URL.revokeObjectURL(url);a.parentNode.removeChild(a);}catch(e){}},2000);
 }
 // ---------------- Vista: Seguimientos (compromisos de UDA) ----------------
 function claveSeg(s){return (s&&s.id)?s.id:('fila'+(s&&s.fila));}
