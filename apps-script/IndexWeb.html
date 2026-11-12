@@ -287,9 +287,31 @@ function apiGet(accion,id){
   if(sesionToken())u+='&sesion='+encodeURIComponent(sesionToken());
   return fetch(u,{method:'GET'}).then(function(r){return r.json();});
 }
+// Protección contra doble clic: mientras una MISMA petición está en el aire,
+// las repetidas se ignoran (si no, "Guardar caso" dos veces = 2 casos).
+// Excluimos las subidas de archivo, que sí van varias en paralelo a propósito.
+var POSTS_EN_CURSO={};
+var ACCIONES_SUBIDA={subirArchivo:1,subirArchivoVisita:1,subirEvidenciaAccion:1};
 function apiPost(payload){
+  var acc=String((payload&&payload.accion)||'');
+  if(acc&&!ACCIONES_SUBIDA[acc]&&POSTS_EN_CURSO[acc]){
+    return Promise.resolve({ok:false,mensaje:'Un momento: la operación anterior sigue guardándose. Espera un instante e inténtalo de nuevo.'});
+  }
   if(sesionToken())payload.sesion=sesionToken();
-  return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+  if(acc)POSTS_EN_CURSO[acc]=1;
+  botonesModalBloquear(true);
+  function liberar(){if(acc)delete POSTS_EN_CURSO[acc];botonesModalBloquear(false);}
+  return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json();})
+    .then(function(r){liberar();return r;},function(e){liberar();throw e;});
+}
+function botonesModalBloquear(on){
+  try{
+    var m=document.getElementById('modal');
+    if(!m||!m.classList.contains('on'))return;
+    var bs=m.querySelectorAll('button');
+    for(var i=0;i<bs.length;i++)bs[i].disabled=on;
+  }catch(e){}
 }
 function toast(msg,err){var t=document.getElementById('toast');t.textContent=msg;t.className=err?'on err':'on';clearTimeout(t._t);t._t=setTimeout(function(){t.className='';},err?5000:2800);}
 function aInputFecha(f){if(!f)return '';var p=String(f).split('/');if(p.length!==3)return '';return p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0');}

@@ -8,6 +8,7 @@ function apiLeer(accion, p) {
   if (accion === 'datos' || accion === 'panel') {
     exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL, CFG.ROLES.VISITA]);
     asegurarCatalogos(); // crea la hoja Catálogos en la primera carga si no existe
+    asegurarColumnaPlan(); // asegura la columna ID_Caso de la hoja Planes
     try {
       return panelDatos(sesion);
     } catch (err) {
@@ -53,6 +54,7 @@ function asegurarInstalacion() {
       }
       if (version !== VERSION_INSTALACION || !hojaConfig) instalarSistema();
       asegurarColumnaEstado();
+      asegurarColumnaPlan();
       asegurarHojasNuevas();
     } finally {
       lock.releaseLock();
@@ -82,6 +84,23 @@ function asegurarColumnaEstado() {
   const cab = h.getLastColumn() >= col ? h.getRange(1, col).getValue() : '';
   if (normalizarTexto(cab) !== 'ESTADO SEGUIMIENTO') {
     h.getRange(1, col).setValue('ESTADO SEGUIMIENTO');
+  }
+}
+
+// Agrega la columna ID_Caso a la hoja Planes (enlace caso <-> plan de mejora)
+// en las hojas creadas antes de existir el campo. Solo escribe el encabezado.
+function asegurarColumnaPlan() {
+  try {
+    const h = hojaPorNombre(CFG.HOJAS.PLANES);
+    if (!h) return;
+    const col = COL.PLANES.indexOf('ID_Caso') + 1;
+    if (col <= 0) return;
+    const cab = h.getLastColumn() >= col ? h.getRange(1, col).getValue() : '';
+    if (normalizarTexto(cab) !== 'ID_Caso') {
+      h.getRange(1, col).setValue('ID_Caso');
+    }
+  } catch (e) {
+    // Sin hoja Planes todavía: la creará la instalación.
   }
 }
 
@@ -156,7 +175,11 @@ function apiEjecutar(body) {
       return { ok: true, id: id, mensaje: 'Evento ' + id + ' registrado.' };
     }
     if (accion === 'nuevaAccion') {
-      exigirRol(usuario, [CFG.ROLES.ADMIN]);
+      // Admin desde cualquier caso; Profesional solo desde UNO DE SUS CASOS
+      // asignados (el enlace lo da datos.idCaso, que llega desde el botón
+      // "＋ Plan de mejora" de la fila del caso).
+      exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
+      if (!esAdmin(usuario)) exigirCasoPropio(usuario, datos.idCaso, 'crear planes de mejora');
       const id = panelNuevaAccion(datos);
       return { ok: true, id: id, mensaje: 'Acción ' + id + ' registrada.' };
     }
@@ -307,6 +330,7 @@ function panelDatos(sesion) {
     lista.push({
       id: normalizarTexto(r['ID_Acción']),
       evento: normalizarTexto(r['ID_Evento']),
+      idCaso: normalizarTexto(r['ID_Caso']),
       institucion: normalizarTexto(r['Institución responsable']),
       responsable: normalizarTexto(r['Responsable asignado']),
       hallazgo: normalizarTexto(r['Hallazgo identificado']),

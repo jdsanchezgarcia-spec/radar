@@ -30,6 +30,19 @@ function registrarAccion(datos) {
     }
   }
 
+  // Enlace con la hoja Casos: la acción puede nacer desde un caso concreto
+  // (botón "＋ Plan de mejora" de la fila del caso).
+  const idCaso = normalizarTexto(datos.idCaso);
+  if (idCaso) {
+    const casos = leerTabla(CFG.HOJAS.CASOS);
+    const existeCaso = casos.some(function (c) {
+      return normalizarTexto(c['ID_Caso']) === idCaso;
+    });
+    if (!existeCaso) {
+      throw new Error('El caso "' + idCaso + '" no existe.');
+    }
+  }
+
   const id = generarId('PM-', CFG.HOJAS.PLANES, 1);
   const h = hojaPorNombre(CFG.HOJAS.PLANES);
   h.appendRow([
@@ -54,7 +67,8 @@ function registrarAccion(datos) {
     '',
     '',
     '',
-    new Date()
+    new Date(),
+    idCaso
   ]);
 
   if (idEvento) actualizarPlanesGenerados(idEvento);

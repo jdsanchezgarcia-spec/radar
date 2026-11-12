@@ -210,7 +210,13 @@ function listaSeguimientos() {
   const sinMarca = [];
 
   const lista = filas.map(function (r) {
-    const idCaso = vincularSeguimiento(r['N° IDENTIFICACIÓN'], r['NOMBRE'], indice);
+    // Vínculo: manda el ID_Caso guardado en la hoja (vínculo exacto, p. ej.
+    // creado desde el botón "▶ Iniciar seguimiento"); si no existe o apunta a
+    // un caso borrado, se vuelve a calcular por cédula/nombre.
+    const idGuardado = normalizarTexto(r['ID_Caso']);
+    const idCaso = (idGuardado && indice.porId[idGuardado])
+      ? idGuardado
+      : vincularSeguimiento(r['N° IDENTIFICACIÓN'], r['NOMBRE'], indice);
     const caso = idCaso ? indice.porId[idCaso] : null;
     const id = normalizarTexto(r['ID_Seguimiento']);
     const estado = normalizarEstadoSeguimiento(r['ESTADO']);
@@ -398,6 +404,13 @@ function exigirPermisoSeguimiento(usuario, idSeguimiento, datos) {
   // Alta: el profesional registra el compromiso SIEMPRE a su nombre
   // (no puede dar de alta compromisos a nombre de otro).
   if (!idSeguimiento) {
+    // Si el formulario trae el caso elegido en el botón "▶ Iniciar
+    // seguimiento", el vínculo es exacto (sin adivinar por cédula).
+    if (normalizarTexto(datos.idCaso)) {
+      exigirCasoPropio(usuario, datos.idCaso, 'iniciar seguimientos');
+      datos.profesional = usuario.nombre;
+      return;
+    }
     const idCaso = vincularSeguimiento(
       datos.identificacion || datos['N° IDENTIFICACIÓN'],
       normalizarTexto(datos.nombre || datos.NOMBRE),
@@ -442,7 +455,16 @@ function registrarSeguimiento(datos) {
   if (!compromiso) throw new Error('El COMPROMISO es obligatorio.');
 
   const indice = indiceCasosSeguimiento();
-  const idCaso = vincularSeguimiento(datos.identificacion || datos['N° IDENTIFICACIÓN'], nombre, indice);
+  // Vínculo exacto cuando el usuario eligió el caso desde su fila
+  // (botón "▶ Iniciar seguimiento"); si no, se vincula por cédula/nombre.
+  const idCasoDirecto = normalizarTexto(datos.idCaso);
+  let idCaso = '';
+  if (idCasoDirecto) {
+    if (!indice.porId[idCasoDirecto]) throw new Error('No existe el caso "' + idCasoDirecto + '".');
+    idCaso = idCasoDirecto;
+  } else {
+    idCaso = vincularSeguimiento(datos.identificacion || datos['N° IDENTIFICACIÓN'], nombre, indice);
+  }
 
   const id = generarId('SG-', CFG.HOJAS.SEGUIMIENTOS, 1);
   const h = hojaSeguimientos();

@@ -160,7 +160,9 @@ const COL = {
     'Observaciones de verificación',
     'Días restantes',
     'Alerta',
-    'Última actualización'
+    'Última actualización',
+    // Enlace con la hoja Casos: la acción de mejora nasce desde un caso.
+    'ID_Caso'
   ],
 
   VERIFICACIONES: [

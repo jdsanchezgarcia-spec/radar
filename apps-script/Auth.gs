@@ -228,6 +228,26 @@ function exigirAccesoCaso(usuario, idCaso) {
   }
 }
 
+/**
+ * El Profesional solo puede actuar (iniciar seguimientos, crear planes de
+ * mejora) desde UNO DE SUS CASOS asignados. El Admin pasa sin validación.
+ * Devuelve el registro del caso.
+ */
+function exigirCasoPropio(usuario, idCaso, proposito) {
+  if (esAdmin(usuario)) return null;
+  const id = normalizarTexto(idCaso);
+  const texto = proposito || 'trabajar en un caso';
+  if (!id) throw new Error('Para ' + texto + ' debes elegir uno de tus casos asignados.');
+  const casoReg = leerTabla(CFG.HOJAS.CASOS).filter(function (c) {
+    return normalizarTexto(c['ID_Caso']) === id;
+  })[0];
+  if (!casoReg) throw new Error('No existe el caso "' + id + '".');
+  if (!mismoNombreSeguimiento(casoReg['PROFESIONAL ASIGNADO'], usuario.nombre)) {
+    throw new Error('Solo puedes ' + texto + ' en tus casos asignados.');
+  }
+  return casoReg;
+}
+
 // ---------------- Alta de usuarios desde la hoja ----------------
 // Escribe la contraseña en la columna "Clave" de la hoja Usuarios:
 // este disparador la cifra en Sal + Hash y borra lo escrito en claro.
