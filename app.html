@@ -192,6 +192,9 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .segs-item{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--borde);border-radius:9px;background:var(--sup2)}
 .segs-item:hover{border-color:var(--borde2)}
 .segs-fecha{font-weight:800;color:var(--azul);white-space:nowrap;font-size:12.5px;background:#e4f0f9;border:1px solid #cbe2f2;border-radius:7px;padding:3px 8px;flex-shrink:0}
+.segs-fecha.na{color:var(--gris);background:var(--sup2);border-style:dashed;border-color:var(--borde2)}
+.segs-btns{display:flex;gap:8px;align-items:end}
+.segs-btns .btn{margin-bottom:1px;white-space:nowrap}
 .segs-obs{flex:1;font-size:13px;line-height:1.5;word-break:break-word;white-space:pre-line;color:var(--texto)}
 .segs-obs.vacio{color:#c3ced8}
 .segs-item .btn{flex-shrink:0}
@@ -1333,14 +1336,24 @@ function formatearSeguimientos(lista){
     return f+(o?': '+o:'');
   }).filter(function(x){return x;}).join('\n');
 }
+// Entrada "No aplica": sin fecha y con esa observación (también se reconoce
+// lo que ya esté escrito a mano en el Excel, p. ej. "No aplica").
+function esNoAplica(x){
+  return !!x&&!x.fecha&&/^no\s*aplica\b/i.test(String(x.obs||'').trim());
+}
+function chipSeg(x){
+  if(esNoAplica(x))return '<span class="segs-fecha na">No aplica</span>';
+  return '<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
+}
 // Lista visual con botón ✕ para quitar cada fecha.
 function segsListaHTML(lista,idSeg,editable){
   if(!lista.length)return '<div class="vacio-sm">Sin seguimientos registrados.</div>';
   var h='<div class="segs">';
   lista.forEach(function(x,i){
     h+='<div class="segs-item">';
-    h+='<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
-    h+='<span class="segs-obs'+(x.obs?'':' vacio')+'">'+(x.obs?esc(x.obs):'—')+'</span>';
+    h+=chipSeg(x);
+    var na=esNoAplica(x);
+    h+='<span class="segs-obs'+((x.obs&&!na)?'':' vacio')+'">'+(na?'':(x.obs?esc(x.obs):'—'))+'</span>';
     if(editable)h+='<button type="button" class="btn mal sm" title="Quitar este seguimiento" onclick="segQuitar(\''+esc(idSeg)+'\','+i+')">✕</button>';
     h+='</div>';
   });
@@ -1359,19 +1372,34 @@ function segQuitar(id,i){
   if(!s)return;
   var lista=seguimientosDe(s);
   if(i<0||i>=lista.length)return;
-  var fecha=lista[i].fecha?fechaLargaSeg(lista[i].fecha):'sin fecha';
-  if(!confirm('¿Quitar el seguimiento del '+fecha+'?'))return;
+  var fecha=esNoAplica(lista[i])?'"No aplica"':(lista[i].fecha?fechaLargaSeg(lista[i].fecha):'sin fecha');
+  if(!confirm('¿Quitar el seguimiento '+fecha+'?'))return;
   lista.splice(i,1);
   guardarFechasSeg(id,lista);
 }
 // Modal para agregar una fecha + observación desde la tarjeta del seguimiento.
 function modalSegFecha(id){
   var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  var yaNoAplica=s&&seguimientosDe(s).some(esNoAplica);
   var h='<h2>Agregar seguimiento · '+esc(id)+'</h2><p class="ayuda">'+esc(s?(s.caso||s.nombre||''):'')+'</p><div class="grid">';
   h+=camp('Fecha del seguimiento','sgf-fecha','date',hoyIso());
   h+=camp('Observación','sgf-obs','textarea','',true);
-  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSegFecha(\''+esc(id)+'\')">Agregar seguimiento</button></div>';
+  h+='</div><div class="pie">'+
+     '<button class="btn sec" onclick="marcarNoAplica(\''+esc(id)+'\')"'+(yaNoAplica?' disabled':'')+'>'+(yaNoAplica?'Ya es "No aplica"':'No aplica')+'</button>'+
+     '<span style="flex:1"></span>'+
+     '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>'+
+     '<button class="btn" onclick="guardarSegFecha(\''+esc(id)+'\')">Agregar seguimiento</button></div>';
   abrirModal(h);
+}
+// Marca la celda como "No aplica" (reemplaza las fechas anteriores).
+function marcarNoAplica(id){
+  var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  if(!s)return;
+  var lista=seguimientosDe(s);
+  if(lista.some(esNoAplica)){toast('Ya está marcado como "No aplica".',true);return;}
+  if(lista.length&&!confirm('Esto reemplaza las '+lista.length+' fecha(s) registradas por "No aplica". ¿Continuar?'))return;
+  cerrarModal();
+  guardarFechasSeg(id,[{fecha:'',obs:'No aplica'}]);
 }
 function guardarSegFecha(id){
   var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
@@ -1387,12 +1415,13 @@ function guardarSegFecha(id){
 var SEG_EDIT=[];
 function segsModalHTML(){
   var h='';
-  if(!SEG_EDIT.length)h+='<div class="vacio-sm">Aún no hay seguimientos. Agrega la primera fecha más abajo.</div>';
+  if(!SEG_EDIT.length)h+='<div class="vacio-sm">Aún no hay seguimientos. Agrega la primera fecha más abajo, o marca "No aplica".</div>';
   h+='<div class="segs">';
   SEG_EDIT.forEach(function(x,i){
     h+='<div class="segs-item">';
-    h+='<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
-    h+='<span class="segs-obs'+(x.obs?'':' vacio')+'">'+(x.obs?esc(x.obs):'—')+'</span>';
+    h+=chipSeg(x);
+    var na=esNoAplica(x);
+    h+='<span class="segs-obs'+((x.obs&&!na)?'':' vacio')+'">'+(na?'':(x.obs?esc(x.obs):'—'))+'</span>';
     h+='<button type="button" class="btn mal sm" title="Quitar" onclick="segEditQuitar('+i+')">✕</button>';
     h+='</div>';
   });
@@ -1400,7 +1429,10 @@ function segsModalHTML(){
   h+='<div class="segs-add">'+
      '<div class="camp"><label>Nueva fecha</label><input type="date" id="sg-nfecha" value="'+hoyIso()+'"></div>'+
      '<div class="camp"><label>Observación</label><input type="text" id="sg-nobs" placeholder="Qué se hizo en ese seguimiento"></div>'+
+     '<div class="segs-btns">'+
      '<button type="button" class="btn sm" onclick="segEditAgregar()">➕ Agregar</button>'+
+     '<button type="button" class="btn sec sm" title="Marcar que no aplican los seguimientos" onclick="segEditNoAplica()">No aplica</button>'+
+     '</div>'+
      '</div>';
   return h;
 }
@@ -1416,6 +1448,12 @@ function segEditAgregar(){
 }
 function segEditQuitar(i){
   SEG_EDIT.splice(i,1);
+  pintarSegsModal();
+}
+// Marca la celda como "No aplica" (sin fechas de seguimiento).
+function segEditNoAplica(){
+  if(SEG_EDIT.some(esNoAplica)){toast('Ya está marcado como "No aplica".',true);return;}
+  SEG_EDIT.push({fecha:'',obs:'No aplica'});
   pintarSegsModal();
 }
 
