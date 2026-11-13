@@ -1346,7 +1346,8 @@ function chipSeg(x){
   return '<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
 }
 // Lista visual con botón ✕ para quitar cada fecha.
-function segsListaHTML(lista,idSeg,editable){
+function segsListaHTML(lista,idSeg,editable,fnQuitar){
+  fnQuitar=fnQuitar||'segQuitar';
   if(!lista.length)return '<div class="vacio-sm">Sin seguimientos registrados.</div>';
   var h='<div class="segs">';
   lista.forEach(function(x,i){
@@ -1354,7 +1355,7 @@ function segsListaHTML(lista,idSeg,editable){
     h+=chipSeg(x);
     var na=esNoAplica(x);
     h+='<span class="segs-obs'+((x.obs&&!na)?'':' vacio')+'">'+(na?'':(x.obs?esc(x.obs):'—'))+'</span>';
-    if(editable)h+='<button type="button" class="btn mal sm" title="Quitar este seguimiento" onclick="segQuitar(\''+esc(idSeg)+'\','+i+')">✕</button>';
+    if(editable)h+='<button type="button" class="btn mal sm" title="Quitar este seguimiento" onclick="'+fnQuitar+'(\''+esc(idSeg)+'\','+i+')">✕</button>';
     h+='</div>';
   });
   h+='</div>';
@@ -1410,6 +1411,57 @@ function guardarSegFecha(id){
   lista.push({fecha:f,obs:o});
   cerrarModal();
   guardarFechasSeg(id,lista);
+}
+
+// ---------------- Igual pero para el CAMPO del caso ----------------
+function casoPorId(id){return (DATOS.casos||[]).filter(function(x){return x.id===id;})[0];}
+function segsCasoDe(c){return parseSeguimientos(c&&c.seguimientosRealizados);}
+function guardarFechasCaso(id,lista){
+  apiPost({accion:'editarSeguimiento',datos:{id:id,seguimientosRealizados:formatearSeguimientos(lista)}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Seguimientos actualizados.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo guardar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function segQuitarCaso(id,i){
+  var c=casoPorId(id);if(!c)return;
+  var lista=segsCasoDe(c);
+  if(i<0||i>=lista.length)return;
+  var fecha=esNoAplica(lista[i])?'"No aplica"':(lista[i].fecha?fechaLargaSeg(lista[i].fecha):'sin fecha');
+  if(!confirm('¿Quitar el seguimiento '+fecha+'?'))return;
+  lista.splice(i,1);
+  guardarFechasCaso(id,lista);
+}
+// Modal para agregar una fecha + observación desde la ficha del caso.
+function modalSegFechaCaso(id){
+  var c=casoPorId(id);
+  var yaNoAplica=c&&segsCasoDe(c).some(esNoAplica);
+  var h='<h2>Agregar seguimiento · '+esc(id)+'</h2><p class="ayuda">'+esc(c?c.caso:'')+'</p><div class="grid">';
+  h+=camp('Fecha del seguimiento','sgf-fecha','date',hoyIso());
+  h+=camp('Observación','sgf-obs','textarea','',true);
+  h+='</div><div class="pie">'+
+     '<button class="btn sec" onclick="marcarNoAplicaCaso(\''+esc(id)+'\')"'+(yaNoAplica?' disabled':'')+'>'+(yaNoAplica?'Ya es "No aplica"':'No aplica')+'</button>'+
+     '<span style="flex:1"></span>'+
+     '<button class="btn sec" onclick="cerrarModal()">Cancelar</button>'+
+     '<button class="btn" onclick="guardarSegFechaCaso(\''+esc(id)+'\')">Agregar seguimiento</button></div>';
+  abrirModal(h);
+}
+function guardarSegFechaCaso(id){
+  var c=casoPorId(id);if(!c)return;
+  var lista=segsCasoDe(c);
+  var f=v('sgf-fecha'),o=String(v('sgf-obs')||'').trim();
+  if(!f&&!o){toast('Indica la fecha y/o la observación del seguimiento.',true);return;}
+  lista.push({fecha:f,obs:o});
+  cerrarModal();
+  guardarFechasCaso(id,lista);
+}
+// Marca el campo del caso como "No aplica" (reemplaza las fechas anteriores).
+function marcarNoAplicaCaso(id){
+  var c=casoPorId(id);if(!c)return;
+  var lista=segsCasoDe(c);
+  if(lista.some(esNoAplica)){toast('Ya está marcado como "No aplica".',true);return;}
+  if(lista.length&&!confirm('Esto reemplaza las '+lista.length+' fecha(s) registradas por "No aplica". ¿Continuar?'))return;
+  cerrarModal();
+  guardarFechasCaso(id,[{fecha:'',obs:'No aplica'}]);
 }
 // Editor de fechas/observaciones dentro del modal "Editar seguimiento".
 var SEG_EDIT=[];
@@ -1473,6 +1525,10 @@ function tarjetaCaso(c){
     : '<div class="prof-box vacio"><div class="prof-txt"><div class="prof-lb">Profesional asignado</div><div class="prof-nombre">Sin asignar</div></div></div>';
   e+=grupo('Datos básicos',fila('Cédula',c.cc)+fila('Edad',(c.edad!==''&&c.edad!=null)?c.edad+' años':'')+fila('Gestaciones',c.gestaciones)+fila('Evento (CIE)',c.evento));
   e+=grupo('Fechas',fila('Defunción',c.fechaDefuncion)+fila('Asignación',c.fechaAsignacion)+fila('Vencimiento',c.fechaVencimiento?c.fechaVencimiento+dias:'')+fila('Realización',c.fechaRealizacion)+fila('Período epi',c.periodo));
+  var segsEditCaso=puedeEditarUI(c);
+  e+=grupo('Fechas y observaciones de los seguimientos realizados',
+    '<div id="segs-caso-'+esc(c.id)+'">'+segsListaHTML(segsCasoDe(c),c.id,segsEditCaso,'segQuitarCaso')+'</div>'+
+    (segsEditCaso?'<div style="margin-top:10px"><button class="btn sec sm" onclick="modalSegFechaCaso(\''+esc(c.id)+'\')">➕ Agregar seguimiento</button></div>':''));
   e+=grupo('Instituciones',fila('EAPB',c.eapb)+fila('IPS 1er nivel',c.ipsPrimerNivel)+fila('IPS parto',c.ipsParto));
   e+=grupo('Análisis del caso',fila('Observación',c.observacion)+fila('Causa de muerte',c.causaMuerte)+fila('Conclusión UA',c.conclusion)+fila('Intervinientes UA',c.intervinientes)+fila('Otros datos',c.otrosDatos));
   if(c.detalleAlerta)e+='<div class="detalle">'+esc(c.detalleAlerta)+'</div>';
@@ -1641,6 +1697,8 @@ function modalNuevo(){
   h+=campSelect('Profesional asignado','n-prof',catLista('profesionales',nombresProfesionales()),'');
   h+=camp('Intervinientes UA','n-inter','textarea','',true);
   h+=camp('Otros datos','n-otros','textarea','',true);
+  SEG_EDIT=[];
+  h+='<div class="camp full"><label>Fechas y observaciones de los seguimientos realizados</label><div id="s-segs">'+segsModalHTML()+'</div></div>';
   h+=camp('Soportes / archivos (se suben a Drive)','n-archivos','file','',true);
   h+='<div id="subida" style="display:none"><div class="prog-lb" id="prog-lb">Subiendo archivos a Drive…</div><div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div>';
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" id="btn-guardar" onclick="guardarNuevo()">Guardar caso</button></div>';
@@ -1653,7 +1711,8 @@ function guardarNuevo(){
     periodo:v('n-per'),eapb:v('n-eapb'),ipsPrimerNivel:v('n-ips1'),ipsParto:v('n-ips2'),
     observacion:v('n-obs'),causaMuerte:v('n-causa'),conclusion:v('n-conc'),profesional:v('n-prof'),
     // El estado del caso se mantiene en la hoja Casos (no se pide en el formulario).
-    intervinientes:v('n-inter'),otrosDatos:v('n-otros'),estado:'Pendiente'
+    intervinientes:v('n-inter'),otrosDatos:v('n-otros'),estado:'Pendiente',
+    seguimientosRealizados:formatearSeguimientos(SEG_EDIT)
   };
   if(!d.caso||!d.cc||!d.fechaDefuncion){toast('Caso, cédula y fecha de defunción son obligatorios.',true);return;}
   var inputFile=document.getElementById('n-archivos');
@@ -1722,6 +1781,8 @@ function modalSeg(id){
   h+=campSelect('Profesional asignado','s-prof',catLista('profesionales',nombresProfesionales()),c.profesional);
   h+=camp('Intervinientes UA','s-inter','textarea',c.intervinientes,true);
   h+=camp('Otros datos','s-otros','textarea',c.otrosDatos,true);
+  SEG_EDIT=segsCasoDe(c);
+  h+='<div class="camp full"><label>Fechas y observaciones de los seguimientos realizados</label><div id="s-segs">'+segsModalHTML()+'</div></div>';
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSeg(\''+esc(id)+'\')">Guardar</button></div>';
   abrirModal(h);
 }
@@ -1733,7 +1794,8 @@ function guardarSeg(id){
     periodo:v('s-per'),eapb:v('s-eapb'),ipsPrimerNivel:v('s-ips1'),ipsParto:v('s-ips2'),
     observacion:v('s-obs'),causaMuerte:v('s-causa'),conclusion:v('s-conc'),profesional:v('s-prof'),
     // Estado del seguimiento: lo elige el Administrador o el Profesional.
-    intervinientes:v('s-inter'),otrosDatos:v('s-otros'),estado:v('s-estado')
+    intervinientes:v('s-inter'),otrosDatos:v('s-otros'),estado:v('s-estado'),
+    seguimientosRealizados:formatearSeguimientos(SEG_EDIT)
   };
   apiPost({accion:'editarSeguimiento',datos:d}).then(function(r){
     if(r&&r.ok){cerrarModal();toast(r.mensaje||'Actualizado.');cargar();}

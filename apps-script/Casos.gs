@@ -78,6 +78,7 @@ function listaCasos() {
       seguimiento: normalizarTexto(reg['SEGUIMIENTO']),
       otrosDatos: normalizarTexto(reg['OTROS DATOS RELEVANTES']),
       estado: normalizarTexto(reg['ESTADO SEGUIMIENTO']),
+      seguimientosRealizados: normalizarTexto(reg['FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS']),
       dias: dr,
       alerta: alerta ? alerta.nivel : '',
       detalleAlerta: alerta ? alerta.detalle : ''
@@ -131,7 +132,8 @@ function registrarCaso(datos) {
     normalizarTexto(datos.intervinientes),
     normalizarTexto(datos.seguimiento),
     normalizarTexto(datos.otrosDatos),
-    normalizarTexto(datos.estado) || CFG.ESTADOS_CASO[0]
+    normalizarTexto(datos.estado) || CFG.ESTADOS_CASO[0],
+    normalizarTexto(datos.seguimientosRealizados)
   ]);
   return id;
 }
@@ -160,7 +162,8 @@ function editarSeguimientoCaso(datos) {
     otrosDatos: 'OTROS DATOS RELEVANTES',
     observacion: 'OBSERVACIÓN',
     profesional: 'PROFESIONAL ASIGNADO',
-    estado: 'ESTADO SEGUIMIENTO'
+    estado: 'ESTADO SEGUIMIENTO',
+    seguimientosRealizados: 'FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS'
   };
   Object.keys(textos).forEach(function (k) {
     if (datos[k] !== undefined) campos[textos[k]] = normalizarTexto(datos[k]);

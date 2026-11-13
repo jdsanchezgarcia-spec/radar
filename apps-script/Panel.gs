@@ -53,6 +53,7 @@ function asegurarInstalacion() {
       }
       if (version !== VERSION_INSTALACION || !hojaConfig) instalarSistema();
       asegurarColumnaEstado();
+      asegurarColumnaSeguimientosCaso();
       asegurarColumnaPlan();
       asegurarHojasNuevas();
     } finally {
@@ -83,6 +84,39 @@ function asegurarColumnaEstado() {
   const cab = h.getLastColumn() >= col ? h.getRange(1, col).getValue() : '';
   if (normalizarTexto(cab) !== 'ESTADO SEGUIMIENTO') {
     h.getRange(1, col).setValue('ESTADO SEGUIMIENTO');
+  }
+}
+
+// Crea (si hace falta) la columna "FECHAS Y OBSERVACIONES DE LOS
+// SEGUIMIENTOS REALIZADOS" en hojas Casos creadas antes de existir el campo.
+function asegurarColumnaSeguimientosCaso() {
+  try {
+    const h = hojaPorNombre(CFG.HOJAS.CASOS);
+    if (!h) return;
+    const nombre = 'FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS';
+    const ultima = h.getLastColumn();
+    // ¿Ya existe (en su posición o en cualquier otra)?
+    if (ultima >= 1) {
+      const cab = h.getRange(1, 1, 1, ultima).getValues()[0];
+      for (let i = 0; i < cab.length; i++) {
+        if (normalizarTexto(cab[i]) === nombre) return;
+      }
+    }
+    // Si la posición que espera COL.CASOS está libre, la usa; si no, agrega al final.
+    let col = COL.CASOS.indexOf(nombre) + 1;
+    if (col <= ultima && normalizarTexto(h.getRange(1, col).getValue())) col = ultima + 1;
+    h.getRange(1, col).setValue(nombre);
+    try {
+      h.getRange(1, col)
+        .setBackground(CFG.COLOR.ENCABEZADO)
+        .setFontColor(CFG.COLOR.ENCABEZADO_TEXTO)
+        .setFontWeight('bold')
+        .setVerticalAlignment('middle')
+        .setWrap(true);
+      h.setColumnWidth(col, 260);
+    } catch (e) {}
+  } catch (e) {
+    console.log('No se pudo asegurar la columna de seguimientos del caso: ' + e.message);
   }
 }
 
