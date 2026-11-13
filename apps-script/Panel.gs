@@ -272,6 +272,11 @@ function apiEjecutar(body) {
     if (accion === 'cambiarClave') {
       return { ok: true, mensaje: cambiarClaveUsuario(datos, usuario) };
     }
+    if (accion === 'agregarCatalogo') {
+      // Admin y Profesional pueden dar de alta nuevas EAPB / IPS / etc.
+      exigirRol(usuario, [CFG.ROLES.ADMIN, CFG.ROLES.PROFESIONAL]);
+      return { ok: true, mensaje: agregarValorCatalogo(datos.categoria, datos.valor) };
+    }
     if (accion === 'subirEvidenciaAccion') {
       const idA = body.idAccion || datos.idAccion;
       exigirRolAccion(usuario, idA);

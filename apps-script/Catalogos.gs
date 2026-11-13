@@ -39,7 +39,49 @@ function leerCatalogo() {
   ['Pendiente', 'Realizado', 'Cerrado'].forEach(function (e) {
     if (out.estadosCaso.indexOf(e) < 0) out.estadosCaso.push(e);
   });
+  // Todas las listas salen ordenadas alfabéticamente en los desplegables.
+  Object.keys(out).forEach(function (k) { out[k] = ordenarCatalogo(out[k]); });
   return out;
+}
+
+// Orden alfabético sin distinguir mayúsculas ni acentos.
+function claveCatalogo(s) {
+  let t = String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim();
+  try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+  return t;
+}
+
+function ordenarCatalogo(lista) {
+  return (lista || []).slice().sort(function (a, b) {
+    return claveCatalogo(a).localeCompare(claveCatalogo(b));
+  });
+}
+
+// Agrega un valor nuevo a una columna de la hoja Catálogos (EAPB, IPS, etc.).
+// Es lo que usa la opción "➕ Agregar nueva…" de los desplegables de la web.
+function agregarValorCatalogo(categoria, valor) {
+  const cat = CATALOGOS_COLUMNAS.filter(function (c) { return c[0] === categoria; })[0];
+  if (!cat) throw new Error('La lista "' + categoria + '" no existe.');
+  const n = normalizarTexto(valor);
+  if (!n) throw new Error('Escribe el nombre de la opción nueva.');
+  if (n.length > 120) throw new Error('El nombre es demasiado largo (máximo 120 caracteres).');
+  asegurarCatalogos();
+  const h = ss().getSheetByName(CFG.HOJAS.CATALOGOS);
+  const col = CATALOGOS_COLUMNAS.findIndex(function (c) { return c[0] === categoria; }) + 1;
+  const ultima = h.getLastRow();
+  let filaDestino = ultima + 1;
+  if (ultima > 1) {
+    const vals = h.getRange(2, col, ultima - 1, 1).getValues();
+    for (let i = 0; i < vals.length; i++) {
+      const v = normalizarTexto(vals[i][0]);
+      if (v && claveCatalogo(v) === claveCatalogo(n)) {
+        throw new Error('La opción "' + v + '" ya está en la lista.');
+      }
+      if (!v && filaDestino === ultima + 1) filaDestino = i + 2;
+    }
+  }
+  h.getRange(filaDestino, col).setValue(n);
+  return '"' + n + '" se agregó a la lista ' + cat[1] + '.';
 }
 
 function valoresUnicosDeCasos(campo) {

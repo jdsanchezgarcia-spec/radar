@@ -188,8 +188,20 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 .visita-txt{font-size:13px;color:var(--texto,#2c3e50);white-space:pre-wrap}
 .vacio-sm{font-size:12.5px;color:var(--gris)}
 
+.segs{display:flex;flex-direction:column;gap:8px}
+.segs-item{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--borde);border-radius:9px;background:var(--sup2)}
+.segs-item:hover{border-color:var(--borde2)}
+.segs-fecha{font-weight:800;color:var(--azul);white-space:nowrap;font-size:12.5px;background:#e4f0f9;border:1px solid #cbe2f2;border-radius:7px;padding:3px 8px;flex-shrink:0}
+.segs-obs{flex:1;font-size:13px;line-height:1.5;word-break:break-word;white-space:pre-line;color:var(--texto)}
+.segs-obs.vacio{color:#c3ced8}
+.segs-item .btn{flex-shrink:0}
+.segs-add{display:grid;grid-template-columns:170px 1fr auto;gap:10px;align-items:end;margin-top:10px}
+.segs-add .btn{margin-bottom:1px}
+
 @media(max-width:640px){
   .grid{grid-template-columns:1fr}
+  .segs-add{grid-template-columns:1fr}
+  .segs-item{flex-wrap:wrap}
   .fila{grid-template-columns:1fr;gap:0}
   .fila .lb{color:var(--azul2);margin-top:6px}
   header h1{font-size:17px}
@@ -231,7 +243,6 @@ header .btn-act:hover{background:rgba(255,255,255,.26)}
 
   <div class="tabs">
     <button class="tab on" id="tab-casos" onclick="setVista('casos')">Casos</button>
-    <button class="tab" id="tab-planes" onclick="setVista('planes')">Planes de mejora</button>
     <button class="tab" id="tab-seguimientos" onclick="setVista('seguimientos')">Seguimientos</button>
     <button class="tab" id="btn-mis-casos" style="display:none" onclick="toggleMisCasos()">Mis casos asignados</button>
   </div>
@@ -411,11 +422,13 @@ function pintarBotonesVista(){
   var ib=document.getElementById('btn-importar-seg-wrap');     // ⇪ Importar de la hoja
   if(ib)ib.style.display=(seg&&admin)?'':'none';
   var evb=document.getElementById('btn-evento-wrap');          // + Nuevo evento
-  if(evb)evb.style.display=(VISTA==='planes'&&admin)?'':'none';
+  // La vista de planes ya no existe: los eventos/acciones se crean desde
+  // cualquier pestaña (el modal pide elegir el caso).
+  if(evb)evb.style.display=(admin)?'':'none';
   var acb=document.getElementById('btn-accion-wrap');          // + Nueva acción
   // El Profesional también puede crear acciones, pero siempre desde uno de
   // SUS casos (el botón primero le muestra esos casos para elegir).
-  if(acb)acb.style.display=(VISTA==='planes'&&(admin||prof))?'':'none';
+  if(acb)acb.style.display=((admin||prof))?'':'none';
   var exb=document.getElementById('btn-export-wrap');          // ⬇ Exportar a Excel (Casos)
   if(exb)exb.style.display=(VISTA==='casos'&&(admin||prof))?'':'none';
   var mc=document.getElementById('btn-mis-casos');            // Mis casos asignados (pestaña)
@@ -472,7 +485,6 @@ function renderKpis(){
   h+=kpi('Próximos a vencer',kc.proximos,'naranja','proximo');
   h+=kpi('Vencidos',kc.vencidos,'rojo','vencido');
   h+=kpi('Cerrados',kc.cerrados==null?0:kc.cerrados,'gris','cerrado');
-  h+=kpi('Planes mejora',(DATOS.eventos||[]).length,'azul','planes');
   document.getElementById('kpis').innerHTML=h;
 }
 function renderKpisSeguimientos(){
@@ -574,9 +586,9 @@ function poblarFiltros(){
     if(c.eapb)eapbs[c.eapb]=1;
   });
   (DATOS.seguimientos||[]).forEach(function(s){if(s.profesional)sgprofs[s.profesional]=1;});
-  llenarSel('f-prof','Profesional (todos)',Object.keys(profs).sort());
-  llenarSel('f-eapb','EAPB (todas)',Object.keys(eapbs).sort());
-  llenarSel('f-sg-prof','Profesional (todos)',Object.keys(sgprofs).sort());
+  llenarSel('f-prof','Profesional (todos)',ordenarLista(Object.keys(profs)));
+  llenarSel('f-eapb','EAPB (todas)',ordenarLista(Object.keys(eapbs)));
+  llenarSel('f-sg-prof','Profesional (todos)',ordenarLista(Object.keys(sgprofs)));
 }
 function llenarSel(id,todas,valores){
   var s=document.getElementById(id),prev=s.value;
@@ -615,10 +627,9 @@ function toggleMisCasos(){
 }
 var VISTA='casos';
 function setVista(v){
-  VISTA=v;
-  document.getElementById('tab-casos').classList.toggle('on',v==='casos');
-  document.getElementById('tab-planes').classList.toggle('on',v==='planes');
-  document.getElementById('tab-seguimientos').classList.toggle('on',v==='seguimientos');
+  VISTA=(v==='seguimientos')?'seguimientos':'casos'; // ya no existe la vista 'planes'
+  document.getElementById('tab-casos').classList.toggle('on',VISTA==='casos');
+  document.getElementById('tab-seguimientos').classList.toggle('on',VISTA==='seguimientos');
   var fc=document.getElementById('filtros-casos');
   var fs=document.getElementById('filtros-seg');
   if(fc)fc.style.display=(v==='casos')?'':'none';
@@ -634,8 +645,7 @@ function setVista(v){
   render();
 }
 function render(){
-  if(VISTA==='planes')renderPlanes();
-  else if(VISTA==='seguimientos')renderSeguimientos();
+  if(VISTA==='seguimientos')renderSeguimientos();
   else renderCasos();
 }
 function hayCriterio(){
@@ -957,7 +967,11 @@ function tarjetaSeguimiento(s){
     fila('N° identificación',s.identificacion)+fila('ID caso',s.idCaso)+fila('Vínculo',s.vinculo));
   e+=grupo('Evento y UDA',
     fila('EVENTO',s.evento)+fila('FECHA DE UDA',s.fechaUda)+fila('EAPB responsable',s.eapb)+
-    fila('IPS responsable',s.ips)+fila('Seguimientos realizados (fechas)',s.fechasSeguimiento));
+    fila('IPS responsable',s.ips));
+  var segsEdit=puedeEditarSegUI(s);
+  e+=grupo('Fechas y observaciones de los seguimientos realizados',
+    '<div id="segs-'+esc(s.id)+'">'+segsListaHTML(seguimientosDe(s),s.id,segsEdit)+'</div>'+
+    (segsEdit?'<div style="margin-top:10px"><button class="btn sec sm" onclick="modalSegFecha(\''+esc(s.id)+'\')">➕ Agregar seguimiento</button></div>':''));
   e+=grupo('Compromiso y seguimiento',
     fila('COMPROMISO',s.compromiso)+fila('Responsable del compromiso',s.responsableCompromiso)+
     fila('Fecha de cumplimiento',s.fechaCumplimiento)+fila('Responsable del seguimiento',s.responsableSeguimiento)+
@@ -1031,8 +1045,8 @@ function modalNuevoSeguimiento(){
   h+=camp('N° identificación (cédula)','sg-ident','text');
   h+=camp('EVENTO','sg-evento','text');
   h+=camp('FECHA DE UDA','sg-uda','date');
-  h+=camp('EAPB responsable','sg-eapb','text');
-  h+=camp('IPS responsable','sg-ips','text');
+  h+=campSelect('EAPB responsable','sg-eapb',catLista('eapbs',valoresDe('eapb')),'',false,'eapbs');
+  h+=campSelect('IPS responsable','sg-ips',unionValores('ips',catLista('ips1',[]).concat(catLista('ipsParto',[]))),'',false,'ips1');
   h+=camp('COMPROMISO *','sg-compromiso','textarea','',true);
   h+=camp('Responsable del compromiso','sg-resp-comp','text');
   h+=camp('Fecha de cumplimiento','sg-fecha-cumpl','date');
@@ -1041,6 +1055,8 @@ function modalNuevoSeguimiento(){
   h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],'PARCIAL');
   h+=camp('PORCENTAJE (0-100)','sg-porc','number');
   h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea','',true);
+  SEG_EDIT=[];
+  h+='<div class="camp full"><label>Fechas y observaciones de los seguimientos realizados</label><div id="s-segs">'+segsModalHTML()+'</div></div>';
   h+=campoProfesionalSeg((SESION&&SESION.nombre)||'');
   h+='</div><input type="hidden" id="sg-idcaso"><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarNuevoSeguimiento()">Guardar seguimiento</button></div>';
   abrirModal(h);
@@ -1051,6 +1067,7 @@ function guardarNuevoSeguimiento(){
     eapb:v('sg-eapb'),ips:v('sg-ips'),compromiso:v('sg-compromiso'),responsableCompromiso:v('sg-resp-comp'),
     fechaCumplimiento:v('sg-fecha-cumpl'),responsableSeguimiento:v('sg-resp-seg'),fechaSeguimiento:v('sg-fecha-seg'),
     estado:v('sg-estado'),porcentaje:v('sg-porc'),observacion:v('sg-obs'),profesional:v('sg-prof'),
+    fechasSeguimiento:formatearSeguimientos(SEG_EDIT),
     idCaso:v('sg-idcaso')   // vínculo exacto con el caso elegido (vacío = por cédula)
   };
   if(!d.nombre||!d.compromiso){toast('NOMBRE y COMPROMISO son obligatorios.',true);return;}
@@ -1067,8 +1084,8 @@ function modalEditarSeguimiento(id){
   h+=camp('N° identificación (cédula)','sg-ident','text',s.identificacion);
   h+=camp('EVENTO','sg-evento','text',s.evento);
   h+=camp('FECHA DE UDA','sg-uda','date',aInputFecha(s.fechaUda));
-  h+=camp('EAPB responsable','sg-eapb','text',s.eapb);
-  h+=camp('IPS responsable','sg-ips','text',s.ips);
+  h+=campSelect('EAPB responsable','sg-eapb',catLista('eapbs',valoresDe('eapb')),s.eapb,false,'eapbs');
+  h+=campSelect('IPS responsable','sg-ips',unionValores('ips',catLista('ips1',[]).concat(catLista('ipsParto',[]))),s.ips,false,'ips1');
   h+=camp('COMPROMISO *','sg-compromiso','textarea',s.compromiso,true);
   h+=camp('Responsable del compromiso','sg-resp-comp','text',s.responsableCompromiso);
   h+=camp('Fecha de cumplimiento','sg-fecha-cumpl','date',aInputFecha(s.fechaCumplimiento));
@@ -1077,6 +1094,8 @@ function modalEditarSeguimiento(id){
   h+=campSelect('ESTADO','sg-estado',DATOS.estadosSeguimiento||['CUMPLE','PARCIAL','NO CUMPLE'],s.estado||'PARCIAL');
   h+=camp('PORCENTAJE (0-100)','sg-porc','number',s.porcentaje);
   h+=camp('OBSERVACIÓN DE SEGUIMIENTO','sg-obs','textarea',s.observacion,true);
+  SEG_EDIT=seguimientosDe(s);
+  h+='<div class="camp full"><label>Fechas y observaciones de los seguimientos realizados</label><div id="s-segs">'+segsModalHTML()+'</div></div>';
   h+=campoProfesionalSeg(s.profesional||'');
   h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSeguimiento(\''+esc(id)+'\')">Guardar</button></div>';
   abrirModal(h);
@@ -1087,7 +1106,8 @@ function guardarSeguimiento(id){
     nombre:v('sg-nombre'),identificacion:v('sg-ident'),evento:v('sg-evento'),fechaUda:v('sg-uda'),
     eapb:v('sg-eapb'),ips:v('sg-ips'),compromiso:v('sg-compromiso'),responsableCompromiso:v('sg-resp-comp'),
     fechaCumplimiento:v('sg-fecha-cumpl'),responsableSeguimiento:v('sg-resp-seg'),fechaSeguimiento:v('sg-fecha-seg'),
-    estado:v('sg-estado'),porcentaje:v('sg-porc'),observacion:v('sg-obs'),profesional:v('sg-prof')
+    estado:v('sg-estado'),porcentaje:v('sg-porc'),observacion:v('sg-obs'),profesional:v('sg-prof'),
+    fechasSeguimiento:formatearSeguimientos(SEG_EDIT)
   };
   if(!d.nombre||!d.compromiso){toast('NOMBRE y COMPROMISO son obligatorios.',true);return;}
   apiPost({accion:'actualizarSeguimiento',datos:d}).then(function(r){
@@ -1145,7 +1165,8 @@ function modalNuevoSeguimientoPara(idCaso){
   marcarCasoElegido('sg',idCaso+' · '+(c.caso||''));
   var n=document.getElementById('sg-nombre');if(n&&!n.value)n.value=c.caso||'';
   var i=document.getElementById('sg-ident');if(i&&!i.value)i.value=c.cc||'';
-  var eb=document.getElementById('sg-eapb');if(eb&&!eb.value)eb.value=c.eapb||'';
+  var eb=document.getElementById('sg-eapb');
+  if(eb&&c.eapb&&!eb.value)asegurarOpcionSelect(eb,c.eapb);
   var p=document.getElementById('sg-prof');if(p&&!p.value&&!p.disabled)p.value=c.profesional||'';
 }
 // Planes de mejora (acciones) vinculados a ESTE caso: se listan dentro de la
@@ -1169,19 +1190,12 @@ function planesDeCasoHTML(c){
         '</div></div>';
     });
     h+='</div>';
-    h+='<div style="margin-top:10px"><button class="btn sec sm" onclick="verPlanesDeCaso(\''+esc(c.id)+'\')">Ver en la pestaña Planes</button></div>';
   }
   if(grupoCaso(c)!=='cerrado'&&(esAdmin()||puedeEditarUI(c))){
     h+='<div style="margin-top:10px"><button class="btn sec sm" onclick="modalNuevaAccionPara(\''+esc(c.id)+'\')">＋ Plan de mejora para este caso</button></div>';
   }
   h+='</div>';
   return h;
-}
-function verPlanesDeCaso(idCaso){
-  setVista('planes');
-  var b=document.getElementById('buscar');
-  if(b)b.value=idCaso;
-  render();
 }
 function verSeguimientosDeCaso(idCaso){
   setVista('seguimientos');
@@ -1285,6 +1299,126 @@ function claseEstado(e){if(e==='Gestionado')return 'verde';if(e==='Cerrado')retu
 function fila(lb,vl){var v=(vl===''||vl==null)?'':String(vl);var val=v?esc(v).replace(/\n/g,'<br>'):'<span class="vacio">—</span>';return '<div class="fila"><span class="lb">'+lb+'</span><span class="vl">'+val+'</span></div>';}
 function grupo(t,c){return '<div class="grupo"><div class="gt">'+t+'</div>'+c+'</div>';}
 
+// ---------------- Fechas y observaciones de los seguimientos realizados ----------------
+// Una línea por seguimiento en la celda "FECHAS Y OBSERVACIONES DE LOS
+// SEGUIMIENTOS REALIZADOS":  "06/02/2026: primera solicitud de información..."
+// El parser acepta también fechas separadas por coma (dd-MM-aaaa, dd/MM/aaaa).
+function seguimientosDe(s){return parseSeguimientos(s&&s.fechasSeguimiento);}
+function fechaLargaSeg(f){
+  f=String(f==null?'':f).trim();
+  var p=f.split('-');
+  if(p.length===3&&p[0].length===4)return p[2].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[0];
+  return f;
+}
+function parseSeguimientos(txt){
+  var s=String(txt==null?'':txt).trim();
+  if(!s)return[];
+  var re=/(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4})/g;
+  var out=[],m,last=0,pendiente=null;
+  while((m=re.exec(s))){
+    var trozo=s.slice(last,m.index).trim().replace(/^[:;\-,.]+\s*/,'').trim();
+    if(pendiente!==null)out.push({fecha:pendiente,obs:trozo});
+    else if(trozo)out.push({fecha:'',obs:trozo});
+    pendiente=m[1];last=re.lastIndex;
+  }
+  var resto=s.slice(last).trim().replace(/^[:;\-,.]+\s*/,'').trim();
+  if(pendiente!==null)out.push({fecha:pendiente,obs:resto});
+  else if(resto)out.push({fecha:'',obs:resto});
+  return out;
+}
+function formatearSeguimientos(lista){
+  return (lista||[]).map(function(x){
+    var f=fechaLargaSeg(x.fecha),o=String(x.obs||'').trim();
+    if(!f)return o;
+    return f+(o?': '+o:'');
+  }).filter(function(x){return x;}).join('\n');
+}
+// Lista visual con botón ✕ para quitar cada fecha.
+function segsListaHTML(lista,idSeg,editable){
+  if(!lista.length)return '<div class="vacio-sm">Sin seguimientos registrados.</div>';
+  var h='<div class="segs">';
+  lista.forEach(function(x,i){
+    h+='<div class="segs-item">';
+    h+='<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
+    h+='<span class="segs-obs'+(x.obs?'':' vacio')+'">'+(x.obs?esc(x.obs):'—')+'</span>';
+    if(editable)h+='<button type="button" class="btn mal sm" title="Quitar este seguimiento" onclick="segQuitar(\''+esc(idSeg)+'\','+i+')">✕</button>';
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+// Guarda la lista completa de fechas/observaciones en el seguimiento.
+function guardarFechasSeg(id,lista){
+  apiPost({accion:'actualizarSeguimiento',datos:{id:id,fechasSeguimiento:formatearSeguimientos(lista)}}).then(function(r){
+    if(r&&r.ok){toast(r.mensaje||'Seguimientos actualizados.');cargar();}
+    else toast((r&&r.mensaje)||'No se pudo guardar.',true);
+  }).catch(function(e){toast(e.message,true);});
+}
+function segQuitar(id,i){
+  var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  if(!s)return;
+  var lista=seguimientosDe(s);
+  if(i<0||i>=lista.length)return;
+  var fecha=lista[i].fecha?fechaLargaSeg(lista[i].fecha):'sin fecha';
+  if(!confirm('¿Quitar el seguimiento del '+fecha+'?'))return;
+  lista.splice(i,1);
+  guardarFechasSeg(id,lista);
+}
+// Modal para agregar una fecha + observación desde la tarjeta del seguimiento.
+function modalSegFecha(id){
+  var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  var h='<h2>Agregar seguimiento · '+esc(id)+'</h2><p class="ayuda">'+esc(s?(s.caso||s.nombre||''):'')+'</p><div class="grid">';
+  h+=camp('Fecha del seguimiento','sgf-fecha','date',hoyIso());
+  h+=camp('Observación','sgf-obs','textarea','',true);
+  h+='</div><div class="pie"><button class="btn sec" onclick="cerrarModal()">Cancelar</button><button class="btn" onclick="guardarSegFecha(\''+esc(id)+'\')">Agregar seguimiento</button></div>';
+  abrirModal(h);
+}
+function guardarSegFecha(id){
+  var s=(DATOS.seguimientos||[]).filter(function(x){return x.id===id;})[0];
+  if(!s)return;
+  var lista=seguimientosDe(s);
+  var f=v('sgf-fecha'),o=String(v('sgf-obs')||'').trim();
+  if(!f&&!o){toast('Indica la fecha y/o la observación del seguimiento.',true);return;}
+  lista.push({fecha:f,obs:o});
+  cerrarModal();
+  guardarFechasSeg(id,lista);
+}
+// Editor de fechas/observaciones dentro del modal "Editar seguimiento".
+var SEG_EDIT=[];
+function segsModalHTML(){
+  var h='';
+  if(!SEG_EDIT.length)h+='<div class="vacio-sm">Aún no hay seguimientos. Agrega la primera fecha más abajo.</div>';
+  h+='<div class="segs">';
+  SEG_EDIT.forEach(function(x,i){
+    h+='<div class="segs-item">';
+    h+='<span class="segs-fecha">'+esc(x.fecha?fechaLargaSeg(x.fecha):'Sin fecha')+'</span>';
+    h+='<span class="segs-obs'+(x.obs?'':' vacio')+'">'+(x.obs?esc(x.obs):'—')+'</span>';
+    h+='<button type="button" class="btn mal sm" title="Quitar" onclick="segEditQuitar('+i+')">✕</button>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div class="segs-add">'+
+     '<div class="camp"><label>Nueva fecha</label><input type="date" id="sg-nfecha" value="'+hoyIso()+'"></div>'+
+     '<div class="camp"><label>Observación</label><input type="text" id="sg-nobs" placeholder="Qué se hizo en ese seguimiento"></div>'+
+     '<button type="button" class="btn sm" onclick="segEditAgregar()">➕ Agregar</button>'+
+     '</div>';
+  return h;
+}
+function pintarSegsModal(){
+  var el=document.getElementById('s-segs');
+  if(el)el.innerHTML=segsModalHTML();
+}
+function segEditAgregar(){
+  var f=v('sg-nfecha'),o=String(v('sg-nobs')||'').trim();
+  if(!f&&!o){toast('Indica al menos la fecha o la observación.',true);return;}
+  SEG_EDIT.push({fecha:f,obs:o});
+  pintarSegsModal();
+}
+function segEditQuitar(i){
+  SEG_EDIT.splice(i,1);
+  pintarSegsModal();
+}
+
 function tarjetaCaso(c){
   var dias='';
   if(c.dias!==null&&c.dias!==undefined)dias=c.dias>=0?' (vence en '+c.dias+' d)':' (vencido hace '+Math.abs(c.dias)+' d)';
@@ -1353,21 +1487,21 @@ function camp(lb,id,tipo,val,full){
 function valoresDe(campo){
   var s={};
   (DATOS.casos||[]).forEach(function(c){var x=(c[campo]||'').trim();if(x)s[x]=1;});
-  return Object.keys(s).sort();
+  return ordenarLista(Object.keys(s));
 }
 function unionValores(campo,extra){
   var s={};
   (valoresDe(campo)||[]).forEach(function(x){if(x)s[x]=1;});
   (extra||[]).forEach(function(x){if(x)s[x]=1;});
-  return Object.keys(s).sort();
+  return ordenarLista(Object.keys(s));
 }
 function valoresIps(campo){
   var s={};
   (valoresDe(campo)||[]).forEach(function(x){if(x)s[x]=1;});
   (DATOS.ipsPais||[]).forEach(function(x){if(x)s[x]=1;});
-  return Object.keys(s).sort();
+  return ordenarLista(Object.keys(s));
 }
-function campSelect(lb,id,valores,val,full){
+function campSelect(lb,id,valores,val,full,catNueva){
   var opts='',found=false;
   (valores||[]).forEach(function(x){
     var sel='';
@@ -1376,12 +1510,77 @@ function campSelect(lb,id,valores,val,full){
   });
   if(val&&!found)opts='<option value="'+esc(val)+'" selected>'+esc(val)+'</option>'+opts;
   if(!val)opts='<option value=""></option>'+opts;
-  return '<div class="camp'+(full?' full':'')+'"><label>'+lb+'</label><select id="'+id+'">'+opts+'</select></div>';
+  var extra='';
+  if(catNueva&&!esVisita()){
+    opts+='<option value="__nuevo__">➕ Agregar nueva…</option>';
+    extra=' data-inicial="'+esc(val||'')+'" onchange="catalogoNuevo(this,\''+catNueva+'\')"';
+  }
+  return '<div class="camp'+(full?' full':'')+'"><label>'+lb+'</label><select id="'+id+'"'+extra+'>'+opts+'</select></div>';
+}
+// Último valor elegido en cada desplegable (para volver atrás si se cancela el alta).
+var SEL_PREV={};
+// Asegura que un valor exista como opción del desplegable (p. ej. el EAPB de
+// un caso que todavía no está en la hoja Catálogos).
+function asegurarOpcionSelect(sel,valor){
+  valor=String(valor==null?'':valor).trim();
+  if(!valor||!sel)return;
+  for(var i=0;i<sel.options.length;i++){
+    if(sel.options[i].value===valor){sel.value=valor;return;}
+  }
+  var op=document.createElement('option');
+  op.value=valor;op.textContent=valor;
+  sel.insertBefore(op,sel.firstChild);
+  sel.value=valor;
+}
+// Elige "➕ Agregar nueva…" en un desplegable de catálogo (EAPB, IPS…).
+function catalogoNuevo(sel,cat){
+  var prev=(SEL_PREV[sel.id]!==undefined)?SEL_PREV[sel.id]:(sel.getAttribute('data-inicial')||'');
+  if(sel.value!=='__nuevo__'){SEL_PREV[sel.id]=sel.value;return;}
+  var nombre=prompt('Escribe el nombre de la nueva opción:');
+  if(nombre===null){sel.value=prev;return;}
+  nombre=String(nombre).trim();
+  if(!nombre){sel.value=prev;return;}
+  apiPost({accion:'agregarCatalogo',datos:{categoria:cat,valor:nombre}}).then(function(r){
+    if(r&&r.ok){
+      toast(r.mensaje||'Opción agregada a la lista.');
+      if(!DATOS.catalogos)DATOS.catalogos={};
+      var lista=(DATOS.catalogos[cat]||[]).slice();
+      if(lista.indexOf(nombre)<0)lista.push(nombre);
+      DATOS.catalogos[cat]=ordenarLista(lista);
+      SEL_PREV[sel.id]=nombre;
+      repoblarCatalogo(sel,cat,nombre);
+    }else{
+      toast((r&&r.mensaje)||'No se pudo agregar la opción.',true);
+      sel.value=prev;
+    }
+  }).catch(function(e){toast(e.message,true);sel.value=prev;});
+}
+function repoblarCatalogo(sel,cat,valorSel){
+  var lista=catLista(cat,[]);
+  if(valorSel&&lista.indexOf(valorSel)<0)lista=[valorSel].concat(lista);
+  var opts='';
+  if(!valorSel)opts='<option value=""></option>';
+  opts+=lista.map(function(x){return '<option value="'+esc(x)+'"'+(x===valorSel?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  opts+='<option value="__nuevo__">➕ Agregar nueva…</option>';
+  sel.innerHTML=opts;
+  if(valorSel)sel.value=valorSel;
 }
 
 function catLista(key, fallback) {
   var c = (DATOS.catalogos && DATOS.catalogos[key]) || [];
-  return c.length ? c : (fallback || []);
+  if (!c.length) c = fallback || [];
+  return ordenarLista(c);
+}
+// Orden alfabético (sin distinguir mayúsculas ni acentos) para todos los desplegables.
+function ordenarLista(arr){
+  return (arr||[]).slice().sort(function(a,b){
+    return claveTexto(a).localeCompare(claveTexto(b),'es');
+  });
+}
+function claveTexto(s){
+  s=String(s==null?'':s).toLowerCase();
+  try{s=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');}catch(e){}
+  return s.replace(/\s+/g,' ').trim();
 }
 function modalNuevo(){
   var h='<h2>Nuevo caso</h2><p class="ayuda">Los campos con * son obligatorios. Las listas desplegables salen de la hoja Catálogos del Excel.</p><div class="grid">';
@@ -1395,9 +1594,9 @@ function modalNuevo(){
   h+=camp('Fecha vencimiento','n-venc','date');
   h+=camp('Fecha realización','n-real','date');
   h+=campSelect('Período epidemiológico','n-per',catLista('periodos',valoresDe('periodo')).filter(function(p){return !/semana/i.test(p);}),'');
-  h+=campSelect('EAPB','n-eapb',catLista('eapbs',valoresDe('eapb')),'');
-  h+=campSelect('IPS 1er nivel','n-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),'');
-  h+=campSelect('IPS parto','n-ips2',catLista('ipsParto',valoresIps('ipsParto')),'');
+  h+=campSelect('EAPB','n-eapb',catLista('eapbs',valoresDe('eapb')),'',false,'eapbs');
+  h+=campSelect('IPS 1er nivel','n-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),'',false,'ips1');
+  h+=campSelect('IPS parto','n-ips2',catLista('ipsParto',valoresIps('ipsParto')),'',false,'ipsParto');
   h+=camp('Observación','n-obs','textarea','',true);
   h+=camp('Causa de muerte','n-causa','textarea','',true);
   h+=campSelect('Conclusión UA','n-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),'');
@@ -1476,9 +1675,9 @@ function modalSeg(id){
   h+=camp('Fecha vencimiento','s-venc','date',aInputFecha(c.fechaVencimiento));
   h+=camp('Fecha realización','s-real','date',aInputFecha(c.fechaRealizacion));
   h+=campSelect('Período epidemiológico','s-per',catLista('periodos',valoresDe('periodo')).filter(function(p){return !/semana/i.test(p);}),c.periodo);
-  h+=campSelect('EAPB','s-eapb',catLista('eapbs',valoresDe('eapb')),c.eapb);
-  h+=campSelect('IPS 1er nivel','s-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),c.ipsPrimerNivel);
-  h+=campSelect('IPS parto','s-ips2',catLista('ipsParto',valoresIps('ipsParto')),c.ipsParto);
+  h+=campSelect('EAPB','s-eapb',catLista('eapbs',valoresDe('eapb')),c.eapb,false,'eapbs');
+  h+=campSelect('IPS 1er nivel','s-ips1',catLista('ips1',valoresIps('ipsPrimerNivel')),c.ipsPrimerNivel,false,'ips1');
+  h+=campSelect('IPS parto','s-ips2',catLista('ipsParto',valoresIps('ipsParto')),c.ipsParto,false,'ipsParto');
   h+=camp('Observación','s-obs','textarea',c.observacion,true);
   h+=camp('Causa de muerte','s-causa','textarea',c.causaMuerte,true);
   h+=campSelect('Conclusión UA','s-conc',catLista('conclusiones',unionValores('conclusion',['EVITABLE','NO EVITABLE','TEMPRANA DIRECTA EVITABLE','EVITABLE DESDE EL PUNTO DE VISTA DEL CONTROL PRENATAL'])),c.conclusion);
@@ -2011,7 +2210,7 @@ function prefInstEvento(idEv){
 function guardarAccion(){
   var d={idEvento:v('ac-ev'),hallazgo:v('ac-hallazgo'),accion:v('ac-accion'),institucion:v('ac-inst'),responsable:v('ac-resp'),fechaLimite:v('ac-limite'),prioridad:v('ac-prio'),indicador:v('ac-ind'),idCaso:v('ac-idcaso')};
   apiPost({accion:'nuevaAccion',datos:d}).then(function(r){
-    if(r&&r.ok){toast(r.mensaje||'Acción registrada.');cerrarModal();setVista('planes');cargar();}
+    if(r&&r.ok){toast(r.mensaje||'Acción registrada.');cerrarModal();cargar();}
     else toast((r&&r.mensaje)||'No se pudo registrar la acción.',true);
   }).catch(function(e){toast(e.message,true);});
 }
