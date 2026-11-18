@@ -432,8 +432,8 @@ function pintarBotonesVista(){
   // El Profesional también puede crear acciones, pero siempre desde uno de
   // SUS casos (el botón primero le muestra esos casos para elegir).
   if(acb)acb.style.display=((admin||prof))?'':'none';
-  var exb=document.getElementById('btn-export-wrap');          // ⬇ Exportar a Excel (Casos)
-  if(exb)exb.style.display=(VISTA==='casos'&&(admin||prof))?'':'none';
+  var exb=document.getElementById('btn-export-wrap');          // ⬇ Exportar a Excel (Casos + Seguimientos)
+  if(exb)exb.style.display=(admin||prof)?'':'none';
   var mc=document.getElementById('btn-mis-casos');            // Mis casos asignados (pestaña)
   if(mc)mc.style.display=(SESION&&VISTA==='casos')?'':'none';
 }
@@ -703,6 +703,13 @@ function casosExportables(){
   return lista;
 }
 function estadoExportCaso(c){return clasifCaso(c).texto;}
+// Seguimientos que se exportan: EXACTAMENTE los que muestra la pestaña
+// Seguimientos (mismos filtros de profesional, estado, búsqueda y orden).
+function seguimientosExportables(){
+  var lista=(DATOS.seguimientos||[]).filter(filtroSeg);
+  lista.sort(ordenarSeg);
+  return lista;
+}
 var COLS_EXPORT=[
   ['ID','id'],['CASO','caso'],['CÉDULA','cc'],['EDAD','edad'],['GESTACIONES','gestaciones'],['EVENTO','evento'],
   ['FECHA DE DEFUNCIÓN','fechaDefuncion'],['FECHA DE ASIGNACIÓN','fechaAsignacion'],['FECHA DE VENCIMIENTO','fechaVencimiento'],['FECHA DE REALIZACIÓN','fechaRealizacion'],
@@ -711,26 +718,55 @@ var COLS_EXPORT=[
   ['PROFESIONAL ASIGNADO','profesional'],['INTERVINIENTES EN LA UA','intervinientes'],['SEGUIMIENTO','seguimiento'],['OTROS DATOS RELEVANTES','otrosDatos'],
   ['ESTADO SEGUIMIENTO','estado'],['ESTADO (calculado)','_estado'],['DÍAS RESTANTES','dias'],['ALERTA','alerta'],['DETALLE ALERTA','detalleAlerta']
 ];
+// Hoja "Seguimientos": una fila = UN compromiso de UDA. Los encabezados 3 a 19
+// son EXACTAMENTE los de la hoja Importar del Excel, para poder volver a pegar
+// el archivo sin mapear columnas a mano.
+var COLS_SEG=[
+  ['ID_Seguimiento','id'],['ID_Caso','idCaso'],['N°','n'],['NOMBRE','nombre'],['TIPO DE ID','tipoId'],['N° IDENTIFICACIÓN','identificacion'],
+  ['EVENTO','evento'],['FECHA DE UDA','fechaUda'],['EAPB RESPONSABLE','eapb'],['IPS RESPONSABLE','ips'],
+  ['FECHAS Y OBSERVACIONES DE LOS SEGUIMIENTOS REALIZADOS','fechasSeguimiento'],['COMPROMISO','compromiso'],
+  ['Responsable del compromiso','responsableCompromiso'],['Fecha de cumplimiento','fechaCumplimiento'],
+  ['Responsable del seguimiento al compromiso','responsableSeguimiento'],['fecha de seguimiento','fechaSeguimiento'],
+  ['OBSERVACIÓN DE SEGUIMIENTO','observacion'],['ESTADO','estado'],['PORCENTAJE','porcentaje'],
+  ['Profesional','profesional'],['Vínculo','vinculo'],['Última actualización','actualizacion'],
+  ['CASO VINCULADO','caso'],['DÍAS PARA CUMPLIMIENTO','dias'],['ALERTA','alerta'],['DETALLE ALERTA','detalleAlerta']
+];
 function _p2(n){return(n<10?'0':'')+n;}
 function exportarCasos(){
   var lista=casosExportables();
-  if(!lista.length){toast('No hay casos que coincidan con los filtros para exportar.',true);return;}
-  var enc=COLS_EXPORT.map(function(c){return c[0];});
-  var filas=lista.map(function(c){
-    return COLS_EXPORT.map(function(col){
-      if(col[1]==='_estado')return estadoExportCaso(c);
-      var v=c[col[1]];
-      return(v===null||v===undefined)?'':v;
-    });
-  });
+  var segs=seguimientosExportables();
+  if(!lista.length&&!segs.length){toast('No hay casos ni seguimientos que coincidan con los filtros para exportar.',true);return;}
+  var hojas=[];
+  if(lista.length){
+    hojas.push({nom:'Casos',enc:COLS_EXPORT.map(function(c){return c[0];}),
+      filas:lista.map(function(c){
+        return COLS_EXPORT.map(function(col){
+          if(col[1]==='_estado')return estadoExportCaso(c);
+          var v=c[col[1]];
+          return(v===null||v===undefined)?'':v;
+        });
+      })});
+  }
+  if(segs.length){
+    hojas.push({nom:'Seguimientos',enc:COLS_SEG.map(function(c){return c[0];}),
+      filas:segs.map(function(s){
+        return COLS_SEG.map(function(col){
+          var v=s[col[1]];
+          return(v===null||v===undefined)?'':v;
+        });
+      })});
+  }
   var alcance='';
   try{alcance=document.getElementById('f-prof').value||'';}catch(e){}
   if(!esAdmin())alcance=String((SESION&&SESION.nombre)||'');
   if(!alcance)alcance=esAdmin()?'todos':'mios';
   var d=new Date();
-  var nom='Casos_'+String(alcance).replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-')+'_'+d.getFullYear()+'-'+_p2(d.getMonth()+1)+'-'+_p2(d.getDate())+'.xlsx';
-  _xlsxDescargar(nom,'Casos',enc,filas);
-  toast('Se descargó '+nom+' ('+lista.length+' caso'+(lista.length===1?'':'s')+').');
+  var nom='Casos-y-Seguimientos_'+String(alcance).replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,'-')+'_'+d.getFullYear()+'-'+_p2(d.getMonth()+1)+'-'+_p2(d.getDate())+'.xlsx';
+  _xlsxDescargar(nom,hojas);
+  var partes=[];
+  if(lista.length)partes.push(lista.length+' caso'+(lista.length===1?'':'s'));
+  if(segs.length)partes.push(segs.length+' seguimiento'+(segs.length===1?'':'s'));
+  toast('Se descargó '+nom+' ('+partes.join(' · ')+').');
 }
 function _xml(s){
   return String(s==null?'':s)
@@ -826,20 +862,35 @@ function _xmlHoja(enc,filas){
   });
   return x+'</sheetData></worksheet>';
 }
-function _xlsxDescargar(nombre,hoja,enc,filas){
-  var tipos='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+// _xlsxDescargar(nombre, hojas) — hojas = [{nom:'Casos', enc:[...], filas:[[...]]}, ...]
+// Genera un .xlsx con tantas hojas como se indiquen (ZIP + OOXML, sin librerías).
+function _xlsxDescargar(nombre,hojas){
+  if(!hojas||!hojas.length)hojas=[{nom:'Casos',enc:[],filas:[]}];
+  var tipos='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>';
+  hojas.forEach(function(h,i){tipos+='<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';});
+  tipos+='<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
   var relsRaiz='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
-  var libro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="'+_xml(hoja||'Casos')+'" sheetId="1" r:id="rId1"/></sheets></workbook>';
-  var relsLibro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  var shs='',relsLibro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+  hojas.forEach(function(h,i){
+    // Nombre de hoja válido para Excel: sin caracteres prohibidos, máx. 31.
+    var nm=String(h.nom||('Hoja'+(i+1))).replace(/[\\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim().slice(0,31)||('Hoja'+(i+1));
+    shs+='<sheet name="'+_xml(nm)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>';
+    relsLibro+='<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>';
+  });
+  relsLibro+='<Relationship Id="rId'+(hojas.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  var libro='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+shs+'</sheets></workbook>';
   var estilos='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   var arr=[
     {nom:'[Content_Types].xml',datos:new Uint8Array(_utf8(tipos))},
     {nom:'_rels/.rels',datos:new Uint8Array(_utf8(relsRaiz))},
     {nom:'xl/workbook.xml',datos:new Uint8Array(_utf8(libro))},
     {nom:'xl/_rels/workbook.xml.rels',datos:new Uint8Array(_utf8(relsLibro))},
-    {nom:'xl/styles.xml',datos:new Uint8Array(_utf8(estilos))},
-    {nom:'xl/worksheets/sheet1.xml',datos:new Uint8Array(_utf8(_xmlHoja(enc,filas)))}
+    {nom:'xl/styles.xml',datos:new Uint8Array(_utf8(estilos))}
   ];
+  hojas.forEach(function(h,i){
+    arr.push({nom:'xl/worksheets/sheet'+(i+1)+'.xml',
+              datos:new Uint8Array(_utf8(_xmlHoja(h.enc||[],h.filas||[])))});
+  });
   var blob=new Blob([_zipCrear(arr)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
